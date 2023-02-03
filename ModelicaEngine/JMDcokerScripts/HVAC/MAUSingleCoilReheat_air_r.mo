@@ -1,3 +1,4 @@
+within HVAC;
 model MAUSingleCoilReheat_air_r
   "Make-up air unit with a single water coil and electric reheat coil"
   extends HVAC.PartialAHUOneCoilInterface;

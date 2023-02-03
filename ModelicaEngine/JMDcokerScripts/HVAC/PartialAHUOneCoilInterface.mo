@@ -1,3 +1,4 @@
+within HVAC;
 partial model PartialAHUOneCoilInterface
   replaceable package MediumAir = Buildings.Media.Air constrainedby
     Modelica.Media.Interfaces.PartialMedium "Medium 1 in the component"

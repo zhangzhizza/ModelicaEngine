@@ -1,0 +1,209 @@
+within HVAC.Room;
+model SingleRoom1EleRC "Single room using one element RC model"
+  Buildings.ThermalZones.ReducedOrder.RC.OneElement
+                thermalZoneOneElement(
+    VAir=room_vol,
+    hConExt=2.7,
+    hConWin=2.7,
+    gWin=1,
+    ratioWinConRad=0.09,
+    nExt=1,
+    RExt={0.00331421908725},
+    CExt={5259932.23},
+    hRad=5,
+    RWin=0.01642857143,
+    RExtRem=0.1265217391,
+    nOrientations=2,
+    AWin={7,7},
+    ATransparent={7,7},
+    AExt={3.5,8},
+    redeclare package Medium = Buildings.Media.Air,
+    use_moisture_balance=true,
+    extWallRC(thermCapExt(each der_T(fixed=true))),
+    energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial,
+    T_start=295.15) "Thermal zone"
+    annotation (Placement(transformation(extent={{174,16},{222,52}})));
+  Buildings.ThermalZones.ReducedOrder.EquivalentAirTemperature.VDI6007WithWindow
+                                             eqAirTemp(
+    n=2,
+    wfGro=0,
+    wfWall={0.3043478260869566,0.6956521739130435},
+    wfWin={0.5,0.5},
+    withLongwave=true,
+    aExt=0.7,
+    hConWallOut=20,
+    hRad=5,
+    hConWinOut=20,
+    TGro=285.15) "Computes equivalent air temperature"
+    annotation (Placement(transformation(extent={{62,4},{82,24}})));
+  Buildings.HeatTransfer.Sources.PrescribedTemperature preTem
+    "Prescribed temperature for exterior walls outdoor surface temperature"
+    annotation (Placement(transformation(extent={{94,12},{106,24}})));
+  Buildings.HeatTransfer.Sources.PrescribedTemperature preTem1
+    "Prescribed temperature for windows outdoor surface temperature"
+    annotation (Placement(transformation(extent={{94,32},{106,44}})));
+  Modelica.Thermal.HeatTransfer.Components.Convection theConWin
+    "Outdoor convective heat transfer of windows"
+    annotation (Placement(transformation(extent={{124,34},{114,44}})));
+  Modelica.Thermal.HeatTransfer.Components.Convection theConWall
+    "Outdoor convective heat transfer of walls"
+    annotation (Placement(transformation(extent={{122,24},{112,14}})));
+  Modelica.Thermal.HeatTransfer.Sources.PrescribedHeatFlow perRad
+    "Radiative heat flow of persons"
+    annotation (Placement(transformation(extent={{186,-28},{206,-8}})));
+  Modelica.Thermal.HeatTransfer.Sources.PrescribedHeatFlow perCon
+    "Convective heat flow of persons"
+    annotation (Placement(transformation(extent={{186,-48},{206,-28}})));
+  Modelica.Blocks.Sources.Constant const[2](each k=0)
+    "Sets sunblind signal to zero (open)"
+    annotation (Placement(transformation(extent={{56,34},{62,40}})));
+  Modelica.Thermal.HeatTransfer.Sources.PrescribedHeatFlow macConv
+    "Convective heat flow of machines"
+    annotation (Placement(transformation(extent={{186,-70},{206,-50}})));
+  Modelica.Blocks.Sources.Constant hConWall(k=25*11.5)
+    "Outdoor coefficient of heat transfer for walls"
+    annotation (Placement(
+    transformation(
+    extent={{-4,-4},{4,4}},
+    rotation=90,
+    origin={116,2})));
+  Modelica.Blocks.Sources.Constant hConWin(k=20*14)
+    "Outdoor coefficient of heat transfer for windows"
+    annotation (Placement(
+    transformation(
+    extent={{4,-4},{-4,4}},
+    rotation=90,
+    origin={118,56})));
+  Modelica.Blocks.Interfaces.RealInput OAT
+    "Outdoor air dry bulb temperature (K)" annotation (Placement(transformation(
+          extent={{-126,68},{-100,94}}), iconTransformation(extent={{-126,68},{
+            -100,94}})));
+  Modelica.Blocks.Interfaces.RealInput OARH
+    "Outdoor air relative humidity (0-1)"   annotation (Placement(
+        transformation(extent={{-126,48},{-100,74}}), iconTransformation(extent=
+           {{-126,48},{-100,74}})));
+  Modelica.Blocks.Interfaces.RealInput SkyCoverTenths
+    "Opaque sky cover in tenths (0-10, 0 is clear sky, 10 is completely overcast)"
+    annotation (Placement(transformation(extent={{-126,28},{-100,54}}),
+        iconTransformation(extent={{-126,48},{-100,74}})));
+  Modelica.Blocks.Interfaces.RealInput SolTotal[2]
+    "Total solar radiation per unit area (W/m2)" annotation (Placement(
+        transformation(extent={{-126,8},{-100,34}}), iconTransformation(extent=
+            {{-126,48},{-100,74}})));
+  Modelica.Blocks.Math.Gain gain(k=0.1)
+    annotation (Placement(transformation(extent={{-82,12},{-74,20}})));
+  PsychrometricUtils.Dew_f_Tdrybulb_RH dew_f_Tdrybulb_RH
+    annotation (Placement(transformation(extent={{-70,58},{-54,72}})));
+  WeatherUtils.HorInfRad HorInfRad
+    annotation (Placement(transformation(extent={{-34,-4},{-22,8}})));
+  Modelica.Blocks.Interfaces.RealInput nPeople
+    "The number of people in the room, used to calculate sensible and latent heat gain"
+    annotation (Placement(transformation(extent={{-126,-14},{-100,12}}),
+        iconTransformation(extent={{-126,48},{-100,74}})));
+  Modelica.Blocks.Math.Gain PeopleSensGainPerPerson(k=75)
+    "Sensible heat gain per person(W)"
+    annotation (Placement(transformation(extent={{158,-38},{166,-30}})));
+  Modelica.Blocks.Math.Gain PeopleRadFract(k=0.3)
+    "Fraction of radiant heat emitted by people (0-1)"
+    annotation (Placement(transformation(extent={{170,-22},{178,-14}})));
+  Modelica.Blocks.Interfaces.RealInput EquipGain
+    "Internal heat gain from equipment (W)" annotation (Placement(
+        transformation(extent={{-126,-32},{-100,-6}}), iconTransformation(
+          extent={{-126,48},{-100,74}})));
+  Modelica.Blocks.Math.Gain PeopleLatGainPerPerson(k=40)
+    "Latent heat gain per person(W)"
+    annotation (Placement(transformation(extent={{160,18},{168,26}})));
+  parameter Real room_vol "Room volume (m3)";
+protected
+  Buildings.BoundaryConditions.SkyTemperature.BlackBody
+                           TBlaSkyCom(final calTSky=calTSky)
+    if TBlaSkySou == Buildings.BoundaryConditions.Types.DataSource.File
+    "Computation of the black-body sky temperature"
+    annotation (Placement(transformation(extent={{10,16},{30,36}})));
+equation
+  connect(eqAirTemp.TEqAirWin,preTem1. T)
+    annotation (Line(
+    points={{83,17.8},{86,17.8},{86,38},{92.8,38}},color={0,0,127}));
+  connect(eqAirTemp.TEqAir,preTem. T)
+    annotation (Line(points={{83,14},{90,14},{90,18},{92.8,18}},
+    color={0,0,127}));
+  connect(const.y,eqAirTemp. sunblind)
+    annotation (Line(points={{62.3,37},{72,37},{72,26}},
+    color={0,0,127}));
+  connect(perRad.port,thermalZoneOneElement. intGainsRad)
+    annotation (Line(
+    points={{206,-18},{284,-18},{284,42},{222,42}},
+    color={191,0,0}));
+  connect(theConWin.solid,thermalZoneOneElement. window)
+    annotation (
+    Line(points={{124,39},{124,38},{174,38}},        color={191,0,0}));
+  connect(preTem1.port,theConWin. fluid)
+    annotation (Line(points={{106,38},{114,38},{114,39}},
+                                                       color={191,0,0}));
+  connect(thermalZoneOneElement.extWall,theConWall. solid)
+    annotation (Line(points={{174,30},{130,30},{130,19},{122,19}},
+    color={191,0,0}));
+  connect(theConWall.fluid,preTem. port)
+    annotation (Line(points={{112,19},{110,19},{110,18},{106,18}},
+                                                           color={191,0,0}));
+  connect(hConWall.y,theConWall. Gc)
+    annotation (Line(points={{116,6.4},{116,14},{117,14}},color={0,0,127}));
+  connect(hConWin.y,theConWin. Gc)
+    annotation (Line(points={{118,51.6},{118,44},{119,44}},
+                                                         color={0,0,127}));
+  connect(macConv.port,thermalZoneOneElement. intGainsConv)
+    annotation (
+    Line(points={{206,-60},{234,-60},{234,38},{222,38}},      color={191,
+    0,0}));
+  connect(perCon.port,thermalZoneOneElement. intGainsConv)
+    annotation (
+    Line(points={{206,-38},{234,-38},{234,38},{222,38}},
+                                                     color={191,0,0}));
+  connect(TBlaSkyCom.TBlaSky, eqAirTemp.TBlaSky) annotation (Line(points={{31,
+          26},{40,26},{40,14},{60,14}}, color={0,0,127}));
+  connect(SkyCoverTenths, gain.u) annotation (Line(points={{-113,41},{-92,41},{
+          -92,16},{-82.8,16}}, color={0,0,127}));
+  connect(gain.y, TBlaSkyCom.nOpa) annotation (Line(points={{-73.6,16},{-50,16},
+          {-50,23},{8,23}}, color={0,0,127}));
+  connect(SolTotal, eqAirTemp.HSol) annotation (Line(points={{-113,21},{-86,21},
+          {-86,36},{4,36},{4,40},{50,40},{50,20},{60,20}}, color={0,0,127}));
+  connect(OAT, dew_f_Tdrybulb_RH.TDryBulb) annotation (Line(points={{-113,81},{
+          -74,81},{-74,69.2},{-70.96,69.2}}, color={0,0,127}));
+  connect(OARH, dew_f_Tdrybulb_RH.RelHum) annotation (Line(points={{-113,61},{
+          -112,60.8},{-70.96,60.8}}, color={0,0,127}));
+  connect(dew_f_Tdrybulb_RH.DewPoi, TBlaSkyCom.TDewPoi) annotation (Line(points
+        ={{-53.2,65},{-48,65},{-48,29},{8,29}}, color={0,0,127}));
+  connect(OAT, TBlaSkyCom.TDryBul) annotation (Line(points={{-113,81},{-74,81},
+          {-74,34},{8,34}}, color={0,0,127}));
+  connect(OAT, HorInfRad.TDryBul) annotation (Line(points={{-113,81},{-74,81},{
+          -74,34},{-54,34},{-54,6.8},{-35.2,6.8}}, color={0,0,127}));
+  connect(HorInfRad.TDewPoi, dew_f_Tdrybulb_RH.DewPoi) annotation (Line(points=
+          {{-35.2,2},{-46,2},{-46,28},{-48,28},{-48,65},{-53.2,65}}, color={0,0,
+          127}));
+  connect(SkyCoverTenths, HorInfRad.nOpa10) annotation (Line(points={{-113,41},
+          {-92,41},{-92,16},{-88,16},{-88,-2.8},{-35.2,-2.8}}, color={0,0,127}));
+  connect(HorInfRad.HorInfRad, TBlaSkyCom.HHorIR)
+    annotation (Line(points={{-21.4,2},{2,2},{2,18},{8,18}}, color={0,0,127}));
+  connect(OAT, eqAirTemp.TDryBul) annotation (Line(points={{-113,81},{-74,81},{
+          -74,34},{2,34},{2,38},{42,38},{42,8},{60,8}}, color={0,0,127}));
+  connect(PeopleSensGainPerPerson.y, perCon.Q_flow) annotation (Line(points={{
+          166.4,-34},{176,-34},{176,-38},{186,-38}}, color={0,0,127}));
+  connect(PeopleSensGainPerPerson.y, PeopleRadFract.u) annotation (Line(points=
+          {{166.4,-34},{168,-34},{168,-24},{158,-24},{158,-18},{169.2,-18}},
+        color={0,0,127}));
+  connect(PeopleRadFract.y, perRad.Q_flow)
+    annotation (Line(points={{178.4,-18},{186,-18}}, color={0,0,127}));
+  connect(nPeople, PeopleSensGainPerPerson.u) annotation (Line(points={{-113,-1},
+          {-90,-1},{-90,-16},{-6,-16},{-6,-34},{157.2,-34}}, color={0,0,127}));
+  connect(EquipGain, macConv.Q_flow) annotation (Line(points={{-113,-19},{-40,
+          -19},{-40,-60},{186,-60}}, color={0,0,127}));
+  connect(PeopleLatGainPerPerson.y, thermalZoneOneElement.QLat_flow)
+    annotation (Line(points={{168.4,22},{173,22}}, color={0,0,127}));
+  connect(nPeople, PeopleLatGainPerPerson.u) annotation (Line(points={{-113,-1},
+          {-90,-1},{-90,-16},{150,-16},{150,22},{159.2,22}}, color={0,0,127}));
+  connect(thermalZoneOneElement.solRad, SolTotal) annotation (Line(points={{173,
+          49},{28,49},{28,21},{-113,21}}, color={0,0,127}));
+  annotation (Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,
+            -100},{300,100}})), Diagram(coordinateSystem(preserveAspectRatio=
+            false, extent={{-100,-100},{300,100}})));
+end SingleRoom1EleRC;
