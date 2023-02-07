@@ -44,13 +44,13 @@ function update_path_variable()
 
 # Export the MODELICAPATH
 if [ -z ${MODELICAPATH+x} ]; then
-    MODELICAPATH=`pwd`:"`pwd`/$1"
+    MODELICAPATH=`pwd`:"`pwd`/$1":"`pwd`/ModelicaHVAC"
     echo $MODELICAPATH
 else
     # Add the current directory to the front of the Modelica path.
     # This will export the directory to the docker, and also set
     # it in the MODELICAPATH so that JModelica finds it.
-    MODELICAPATH=`pwd`:${MODELICAPATH}
+    MODELICAPATH=`pwd`:"`pwd`/ModelicaHVAC":${MODELICAPATH}
 fi
 # Create the command to mount all directories in read-only mode
 # a) for MODELICAPATH
@@ -86,6 +86,7 @@ do
     esac
     shift
 done
+echo DOCKER_MODELICAPATH
 # --user=${UID} \
 docker run \
   --user=${UID} \
