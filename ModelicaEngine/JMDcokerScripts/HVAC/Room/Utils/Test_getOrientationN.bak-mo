@@ -1,6 +1,0 @@
-within HVAC.Room.Utils;
-model Test_getOrientationN
-  parameter Integer nOrientation = getOrientationN(true, false, true, true);
-  annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
-        coordinateSystem(preserveAspectRatio=false)));
-end Test_getOrientationN;

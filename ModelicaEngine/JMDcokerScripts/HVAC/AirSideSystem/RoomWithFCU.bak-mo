@@ -1,5 +1,0 @@
-within HVAC.AirSideSystem;
-model RoomWithFCU "A room with a FCU/RCU"
-  annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
-        coordinateSystem(preserveAspectRatio=false)));
-end RoomWithFCU;
