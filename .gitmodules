@@ -1,3 +1,5 @@
 [submodule "ModelicaEngine/JMDcokerScripts/ModelicaHVAC"]
 	path = ModelicaEngine/JMDcokerScripts/ModelicaHVAC
 	url = https://git.data-turing.com/zhangzhiang/ModelicaHVAC.git
+[submodule "ModelicaEngine"]
+	update = checkout
