@@ -1,2 +1,2 @@
 # ModelicaEngine
-Modelica模型的Python
+Modelica模型的Python接口
