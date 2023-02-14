@@ -171,7 +171,13 @@ class Engine(object):
 		################################################################
 		# call the jm shell script to compile the model
 		docker_mo_dir_rela = docker_mo_dir.split(docker_src_dir)[-1]
-		sh_script = "echo {} | sudo -S {} {} {} {} {} {} {}"\
+		if sudo_pwd is None:
+			sh_script = "{} {} {} {} {} {} {}"\
+					.format(docker_src, docker_mo_dir_rela, 
+						compile_src, mo_name, docker_mo_dir_rela, 'me', 
+						is_soep)
+		else:
+			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {}"\
 					.format(sudo_pwd, docker_src, docker_mo_dir_rela, 
 						compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
@@ -202,7 +208,10 @@ class Engine(object):
 		################################################################
 		# move post compilation results
 		# elevate directory permissions
-		elevation_script = "echo {} | sudo -S chmod ugo+rwx -R ."\
+		if sudo_pwd is None:
+			elevation_script = "chmod ugo+rwx -R ."
+		else:
+			elevation_script = "echo {} | sudo -S chmod ugo+rwx -R ."\
 							.format(sudo_pwd)
 		jm_compile_prcs = subprocess.call(
 						elevation_script,
@@ -423,7 +432,15 @@ class Engine(object):
 		fmu_in_docker_path_rela = '.' + os.sep \
 								+ fmu_in_docker_path\
 								.split(fmu_in_docker_dir)[-1]
-		sh_script = "echo {} | sudo -S {} {} {} -p {} -st {} -ft {} "\
+		if self._sudo_pwd is None:
+			sh_script = "{} {} {} -p {} -st {} -ft {} "\
+					"-ll {} -rtol {}" \
+					.format(self._jm_docker_src,
+						fmu_in_docker_dir_rela, self._jm_simulate_src, 
+						fmu_in_docker_path_rela, start_time, final_time,
+						self._log_level, rtol)
+		else:
+			sh_script = "echo {} | sudo -S {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {}" \
 					.format(self._sudo_pwd, self._jm_docker_src,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
@@ -477,7 +494,10 @@ class Engine(object):
 		if len(threading_return) > 0:
 			sim_logger.info('Simulation script compeltes')
 		# elevate directory permissions
-		elevation_script = "echo {} | sudo -S chmod ugo+rwx -R ."\
+		if self._sudo_pwd is None:
+			elevation_script = "chmod ugo+rwx -R ."
+		else:
+			elevation_script = "echo {} | sudo -S chmod ugo+rwx -R ."\
 							.format(self._sudo_pwd)
 		jm_ele_prcs = subprocess.call(
 						elevation_script,
