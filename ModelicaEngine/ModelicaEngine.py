@@ -9,6 +9,7 @@ import _thread
 import shutil
 import xml.etree.ElementTree as ET
 import traceback
+import pandas as pd
 
 from zipfile import ZipFile
 from modelica_builder.model import Model
