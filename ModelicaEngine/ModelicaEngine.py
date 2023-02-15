@@ -39,7 +39,6 @@ class Engine(object):
 		jm_docker_dir = os.path.abspath(jm_docker_dir)
 		mo_path = os.path.abspath(mo_path)
 		res_dir = os.path.abspath(res_dir)
-		fmu_path = os.path.abspath(fmu_path)
 		if fmu_path is not None:
 			fmu_path = os.path.abspath(fmu_path)
 		if jm_docker_src is None:
