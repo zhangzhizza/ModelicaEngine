@@ -390,7 +390,8 @@ class Engine(object):
 
 	def simulate(self, start_time, final_time, 
 				res_names = [], set_param_dict = {}, fmu_path = None,
-				debug_solver = False, rtol = 10e-4):
+				debug_solver = False, rtol = 10e-4, 
+				return_res_files = False):
 		"""
 
 		Args:
@@ -527,37 +528,44 @@ class Engine(object):
 					.split('\n')[0]
 			returned_res_dir = '{}{}{}'.format(
 							fmu_in_docker_dir, os.sep, returned_res_dir)
-			# move simulation results file to res_dir
-			dir_name = 'simres'
-			ver_sig = 'run'
-			sim_res_vernum = this_id# TODO: _res_dir_num is not thread safe
+			sim_logger.debug('Original results path: {}'\
+								.format(returned_res_dir))
+				if os.path.isfile("{}{}{}_result.mat"
+					.format(returned_res_dir, os.sep, self._mo_name)):
+					sim_logger.info('Simulation succeeded, '\
+									'results are ready at: {}'\
+									.format(host_res_dir))
+					
+				else:
+					sim_logger.error('Simulation failed')
+			if return_res_files:
+				# move simulation results file to res_dir
+				dir_name = 'simres'
+				ver_sig = 'run'
+				sim_res_vernum = this_id# TODO: _res_dir_num is not thread safe
 									# self._res_dir_num(self._res_dir, dir_name,
 									#			ver_sig)
-			host_res_dir = '{}{}{}_{}{}'\
+				host_res_dir = '{}{}{}_{}{}'\
 							.format(self._res_dir, os.sep, dir_name,
 									ver_sig, sim_res_vernum)
-			if os.path.exists(host_res_dir):
-				if os.path.isdir(host_res_dir):
-					shutil.rmtree(host_res_dir)
-				if os.path.isfile(host_res_dir):
-					os.remove(host_res_dir)
-			shutil.copytree(returned_res_dir, host_res_dir)
-			sim_logger.debug('Original results path: {}'\
-							.format(returned_res_dir))
-			if os.path.isfile("{}{}{}_result.mat"
-				.format(returned_res_dir, os.sep, self._mo_name)):
-				sim_logger.info('Simulation succeeded, '\
-								'results are ready at: {}'\
-								.format(host_res_dir))
-				
+				if os.path.exists(host_res_dir):
+					if os.path.isdir(host_res_dir):
+						shutil.rmtree(host_res_dir)
+					if os.path.isfile(host_res_dir):
+						os.remove(host_res_dir)
+				shutil.copytree(returned_res_dir, host_res_dir)
+				# copy the current used mo file to the directory
+				if self._used_mo_path is not None:
+					shutil.copy(self._used_mo_path, host_res_dir)
+				# clean temporarly working directory
+				shutil.rmtree(docker_tmp_dir, ignore_errors = True) 
+				return host_res_dir
 			else:
-				sim_logger.error('Simulation failed')
-			# copy the current used mo file to the directory
-			if self._used_mo_path is not None:
-				shutil.copy(self._used_mo_path, host_res_dir)
-			# clean temporarly working directory
-			shutil.rmtree(docker_tmp_dir, ignore_errors = True) 
-			return host_res_dir
+				res_pd = pd.read_csv(returned_res_dir 
+									+ os.sep 
+									+ '{}_res.csv'.format(self._mo_name))
+				res_list = res_pd[res_names].iloc[-1]
+				return res_list
 		except:
 			sim_logger.error('Error! res_names: {}, set_param_dict:{}'\
 								.format(res_names, set_param_dict))
