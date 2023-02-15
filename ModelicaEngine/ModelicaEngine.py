@@ -530,14 +530,14 @@ class Engine(object):
 							fmu_in_docker_dir, os.sep, returned_res_dir)
 			sim_logger.debug('Original results path: {}'\
 								.format(returned_res_dir))
-				if os.path.isfile("{}{}{}_result.mat"
+			if os.path.isfile("{}{}{}_result.mat"
 					.format(returned_res_dir, os.sep, self._mo_name)):
-					sim_logger.info('Simulation succeeded, '\
+				sim_logger.info('Simulation succeeded, '\
 									'results are ready at: {}'\
 									.format(host_res_dir))
 					
-				else:
-					sim_logger.error('Simulation failed')
+			else:
+				sim_logger.error('Simulation failed')
 			if return_res_files:
 				# move simulation results file to res_dir
 				dir_name = 'simres'
