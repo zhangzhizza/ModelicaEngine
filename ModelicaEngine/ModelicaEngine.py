@@ -35,15 +35,28 @@ class Engine(object):
 			    #  'chwp_2', {'p_start': '40000'} ]
 				is_soep = False,
 				log_level = 'INFO'):
+		# make all paths and dirs into abspath
+		jm_docker_dir = os.path.abspath(jm_docker_dir)
+		mo_path = os.path.abspath(mo_path)
+		res_dir = os.path.abspath(res_dir)
+		fmu_path = os.path.abspath(fmu_path)
+		if fmu_path is not None:
+			fmu_path = os.path.abspath(fmu_path)
 		if jm_docker_src is None:
 			jm_docker_src = jm_docker_dir + \
-								os.sep + 'jm_ipython.sh',
+								os.sep + 'jm_ipython.sh'
+		else:
+			jm_docker_src = os.path.abspath(jm_docker_src)
 		if jm_compile_src is None:
 			jm_compile_src = jm_docker_dir + \
-								os.sep + 'compile_fmu_1.py',
+								os.sep + 'compile_fmu_1.py'
+		else:
+			jm_compile_src = os.path.abspath(jm_compile_src)
 		if jm_simulate_src is None:
 			jm_simulate_src = jm_docker_dir + \
 								os.sep + 'run_fmu_1.py'
+		else:
+			jm_simulate_src = os.path.abspath(jm_simulate_src)
 		self._mo_path = mo_path
 		self._fmu_path = fmu_path
 		if self._mo_path is not None:
