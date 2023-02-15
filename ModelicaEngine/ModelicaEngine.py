@@ -391,7 +391,7 @@ class Engine(object):
 	def simulate(self, start_time, final_time, 
 				res_names = [], set_param_dict = {}, fmu_path = None,
 				debug_solver = False, rtol = 10e-4, 
-				return_res_files = False):
+				return_res_files = True):
 		"""
 
 		Args:
