@@ -23,16 +23,10 @@ THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 class Engine(object):
 
 	def __init__(self, mo_path, res_dir, sudo_pwd,
-				fmu_path = None,
-				jm_docker_src = THIS_DIR + os.sep + \
-								'JMDcokerScripts' + \
-								os.sep + 'jm_ipython.sh',
-				jm_compile_src = THIS_DIR + os.sep + \
-								'JMDcokerScripts' + \
-								os.sep + 'compile_fmu_1.py',
-				jm_simulate_src = THIS_DIR + os.sep + \
-								'JMDcokerScripts' + \
-								os.sep + 'run_fmu_1.py',
+				fmu_path = None, jm_docker_dir = THIS_DIR,
+				jm_docker_src = None,
+				jm_compile_src = None,
+				jm_simulate_src = None,
 				set_params = [],
 				#[['Buildings.Fluid.FixedResistances.Junction',
 			    #  'jun_1', {'m_flow_nominal': '{800,-600,-200}',
@@ -41,6 +35,15 @@ class Engine(object):
 			    #  'chwp_2', {'p_start': '40000'} ]
 				is_soep = False,
 				log_level = 'INFO'):
+		if jm_docker_src is None:
+			jm_docker_src = jm_docker_dir + \
+								os.sep + 'jm_ipython.sh',
+		if jm_compile_src is None:
+			jm_compile_src = jm_docker_dir + \
+								os.sep + 'compile_fmu_1.py',
+		if jm_simulate_src is None:
+			jm_simulate_src = jm_docker_dir + \
+								os.sep + 'run_fmu_1.py'
 		self._mo_path = mo_path
 		self._fmu_path = fmu_path
 		if self._mo_path is not None:
