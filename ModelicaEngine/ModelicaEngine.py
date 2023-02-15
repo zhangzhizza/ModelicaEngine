@@ -532,9 +532,7 @@ class Engine(object):
 								.format(returned_res_dir))
 			if os.path.isfile("{}{}{}_result.mat"
 					.format(returned_res_dir, os.sep, self._mo_name)):
-				sim_logger.info('Simulation succeeded, '\
-									'results are ready at: {}'\
-									.format(host_res_dir))
+				sim_logger.info('Simulation succeeded!')
 					
 			else:
 				sim_logger.error('Simulation failed')
