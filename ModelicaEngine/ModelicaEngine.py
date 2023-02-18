@@ -188,13 +188,13 @@ class Engine(object):
 		# call the jm shell script to compile the model
 		docker_mo_dir_rela = docker_mo_dir.split(docker_src_dir)[-1]
 		if sudo_pwd is None:
-			sh_script = "{} {} {} {} {} {} {}"\
-					.format(docker_src, docker_mo_dir_rela, 
+			sh_script = "{} {} {} {} {} {} {} {}"\
+					.format(docker_src, docker_src_dir, docker_mo_dir_rela, 
 						compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {}"\
-					.format(sudo_pwd, docker_src, docker_mo_dir_rela, 
+			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {} {}"\
+					.format(sudo_pwd, docker_src, docker_src_dir, docker_mo_dir_rela, 
 						compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		cmp_logger.info('Calling compilation script...')
@@ -450,16 +450,16 @@ class Engine(object):
 								+ fmu_in_docker_path\
 								.split(fmu_in_docker_dir)[-1]
 		if self._sudo_pwd is None:
-			sh_script = "{} {} {} -p {} -st {} -ft {} "\
+			sh_script = "{} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {}" \
-					.format(self._jm_docker_src,
+					.format(self._jm_docker_src, docker_src_dir,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} -p {} -st {} -ft {} "\
+			sh_script = "echo {} | sudo -S {} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {}" \
-					.format(self._sudo_pwd, self._jm_docker_src,
+					.format(self._sudo_pwd, self._jm_docker_src, docker_src_dir,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol)
