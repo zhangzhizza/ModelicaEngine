@@ -187,6 +187,9 @@ class Engine(object):
 		################################################################
 		# call the jm shell script to compile the model
 		docker_mo_dir_rela = docker_mo_dir.split(docker_src_dir)[-1]
+        # remove the leading /mnt if there is (/mnt is likely a mounted a directory in a docker container)
+        docker_src = docker_src.split('/mnt')[-1]
+        dokcer_src_dir = docker_src_dir.split('/mnt')[-1]
 		if sudo_pwd is None:
 			sh_script = "{} {} {} {} {} {} {} {}"\
 					.format(docker_src, docker_src_dir, docker_mo_dir_rela, 
@@ -449,17 +452,19 @@ class Engine(object):
 		fmu_in_docker_path_rela = '.' + os.sep \
 								+ fmu_in_docker_path\
 								.split(fmu_in_docker_dir)[-1]
+        jm_docker_src = self._jm_docker_src.split('/mnt')[-1]
+        docker_src_dir = docker_src_dir.split('/mnt')[-1]
 		if self._sudo_pwd is None:
 			sh_script = "{} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {}" \
-					.format(self._jm_docker_src, docker_src_dir,
+					.format(jm_docker_src, docker_src_dir,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol)
 		else:
 			sh_script = "echo {} | sudo -S {} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {}" \
-					.format(self._sudo_pwd, self._jm_docker_src, docker_src_dir,
+					.format(self._sudo_pwd, jm_docker_src, docker_src_dir,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol)
