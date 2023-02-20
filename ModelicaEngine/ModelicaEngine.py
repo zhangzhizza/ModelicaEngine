@@ -568,6 +568,8 @@ class Engine(object):
 									+ os.sep 
 									+ '{}_res.csv'.format(self._mo_name))
 				res_list = res_pd[res_names].iloc[-1]
+                # clean temporarly working directory
+				shutil.rmtree(docker_tmp_dir, ignore_errors = True) 
 				return res_list
 		except:
 			sim_logger.error('Error! res_names: {}, set_param_dict:{}'\
