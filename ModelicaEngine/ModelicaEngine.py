@@ -394,7 +394,7 @@ class Engine(object):
 
 	def simulate(self, start_time, final_time, 
 				res_names = [], set_param_dict = {}, fmu_path = None,
-				debug_solver = False, rtol = 10e-4, 
+				debug_solver = False, rtol = 10e-4, maxh = 10,
 				return_res_files = True):
 		"""
 
@@ -455,18 +455,18 @@ class Engine(object):
 		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
 		if self._sudo_pwd is None:
 			sh_script = "{} {} {} {} -p {} -st {} -ft {} "\
-					"-ll {} -rtol {}" \
+					"-ll {} -rtol {} -maxh {}" \
 					.format(self._jm_docker_src, docker_src_dir_host,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
-						self._log_level, rtol)
+						self._log_level, rtol, maxh)
 		else:
 			sh_script = "echo {} | sudo -S {} {} {} {} -p {} -st {} -ft {} "\
-					"-ll {} -rtol {}" \
+					"-ll {} -rtol {} -maxh {}" \
 					.format(self._sudo_pwd, self._jm_docker_src, docker_src_dir_host,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
-						self._log_level, rtol)
+						self._log_level, rtol, maxh)
 		if len(res_names) > 0:
 			sh_script += ' -r {}'.format(' '.join(res_names))
 		if len(set_param_dict) > 0:
