@@ -389,10 +389,16 @@ class Engine(object):
 		else:
 			return False
 
-	def simulate(self, start_time, final_time, 
-				res_names = [], set_param_dict = {}, fmu_path = None,
-				debug_solver = False, rtol = 10e-4, 
-				return_res_files = True):
+	def simulate(self, 
+				start_time: int, 
+				final_time: int,
+				time_step: int = None, 
+				res_names:list = [], 
+				set_param_dict:dict = {}, 
+				fmu_path: str = None,
+				debug_solver: bool = False, 
+				rtol: float = 10e-4, 
+				return_res_files: bool = True):
 		"""
 
 		Args:
@@ -563,7 +569,16 @@ class Engine(object):
 				res_pd = pd.read_csv(returned_res_dir 
 									+ os.sep 
 									+ '{}_res.csv'.format(self._mo_name))
-				res_list = res_pd[res_names].iloc[-1]
+				if time_step is None:
+					res_list = res_pd[res_names].iloc[-1]
+				else:
+					res_list = []
+					res_pd = res_pd.set_index('time')
+					res_pd = res_pd[~res_pd.index.duplicated(keep='first')]
+					res_pd = res_pd.interpolate(method='linear', limit_direction='both')
+					res_pd = res_pd.reindex(range(int(res_pd.index.min()), int(res_pd.index.max()) + 1))
+					for time_i in range(time_step, final_time + 1, time_step):
+						res_list.append(res_pd.loc[time_i].values.tolist())
 				return res_list
 		except:
 			sim_logger.error('Error! res_names: {}, set_param_dict:{}'\
