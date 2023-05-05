@@ -401,6 +401,7 @@ class Engine(object):
 				fmu_path: str = None,
 				debug_solver: bool = False, 
 				rtol: float = 10e-4, 
+				maxh: float = 10,
 				return_res_files: bool = True):
 		"""
 
