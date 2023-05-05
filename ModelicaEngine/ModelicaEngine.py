@@ -583,7 +583,7 @@ class Engine(object):
 					res_pd = res_pd.interpolate(method='linear', limit_direction='both')
 					res_pd = res_pd.reindex(range(int(res_pd.index.min()), int(res_pd.index.max()) + 1))
 					for time_i in range(time_step, final_time + 1, time_step):
-						res_list.append(res_pd.loc[time_i].values.tolist())
+						res_list.append(res_pd[res_names].loc[time_i].values.tolist())
                 # clean temporarly working directory
 				shutil.rmtree(docker_tmp_dir, ignore_errors = True) 
 				return res_list
