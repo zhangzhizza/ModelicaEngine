@@ -187,14 +187,17 @@ class Engine(object):
 		################################################################
 		# call the jm shell script to compile the model
 		docker_mo_dir_rela = docker_mo_dir.split(docker_src_dir)[-1]
+		# remove the leading /mnt if there is (/mnt is likely a mounted a directory in a docker container)
+		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
+		cmp_logger.info(docker_src)
 		if sudo_pwd is None:
-			sh_script = "{} {} {} {} {} {} {}"\
-					.format(docker_src, docker_mo_dir_rela, 
+			sh_script = "{} {} {} {} {} {} {} {}"\
+					.format(docker_src, docker_src_dir_host, docker_mo_dir_rela, 
 						compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {}"\
-					.format(sudo_pwd, docker_src, docker_mo_dir_rela, 
+			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {} {}"\
+					.format(sudo_pwd, docker_src, docker_src_dir_host, docker_mo_dir_rela, 
 						compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		cmp_logger.info('Calling compilation script...')
@@ -455,20 +458,21 @@ class Engine(object):
 		fmu_in_docker_path_rela = '.' + os.sep \
 								+ fmu_in_docker_path\
 								.split(fmu_in_docker_dir)[-1]
+		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
 		if self._sudo_pwd is None:
-			sh_script = "{} {} {} -p {} -st {} -ft {} "\
-					"-ll {} -rtol {}" \
-					.format(self._jm_docker_src,
+			sh_script = "{} {} {} {} -p {} -st {} -ft {} "\
+					"-ll {} -rtol {} -maxh {}" \
+					.format(self._jm_docker_src, docker_src_dir_host,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
-						self._log_level, rtol)
+						self._log_level, rtol, maxh)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} -p {} -st {} -ft {} "\
-					"-ll {} -rtol {}" \
-					.format(self._sudo_pwd, self._jm_docker_src,
+			sh_script = "echo {} | sudo -S {} {} {} {} -p {} -st {} -ft {} "\
+					"-ll {} -rtol {} -maxh {}" \
+					.format(self._sudo_pwd, self._jm_docker_src, docker_src_dir_host,
 						fmu_in_docker_dir_rela, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
-						self._log_level, rtol)
+						self._log_level, rtol, maxh)
 		if len(res_names) > 0:
 			sh_script += ' -r {}'.format(' '.join(res_names))
 		if len(set_param_dict) > 0:
@@ -579,6 +583,8 @@ class Engine(object):
 					res_pd = res_pd.reindex(range(int(res_pd.index.min()), int(res_pd.index.max()) + 1))
 					for time_i in range(time_step, final_time + 1, time_step):
 						res_list.append(res_pd.loc[time_i].values.tolist())
+                # clean temporarly working directory
+				shutil.rmtree(docker_tmp_dir, ignore_errors = True) 
 				return res_list
 		except:
 			sim_logger.error('Error! res_names: {}, set_param_dict:{}'\
@@ -608,10 +614,3 @@ class Engine(object):
 	@property
 	def mo_name(self):
 		return self._mo_name
-	
-
-		
-
-
-
-
