@@ -533,7 +533,7 @@ class Engine(object):
 				else:
 					kill_docker_cmd = f'echo {self._sudo_pwd} | sudo -S docker kill {container_name}'
 				kill_docker_prcs = subprocess.Popen(kill_docker_cmd, shell = True, preexec_fn=os.setsid)
-				sim_logger.warning(f'Simulation timed out! Related docker container is killed by running command {kill_docker_prcs}')
+				sim_logger.warning(f'Simulation timed out! Related docker container is killed by running command {kill_docker_cmd}')
 				raise RuntimeError('Simulation timed out!')
 		while True:
 			if len(threading_return) > 0:
