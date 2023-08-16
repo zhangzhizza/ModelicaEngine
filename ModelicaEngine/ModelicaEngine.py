@@ -190,15 +190,18 @@ class Engine(object):
 		# remove the leading /mnt if there is (/mnt is likely a mounted a directory in a docker container)
 		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
 		cmp_logger.info(docker_src)
+		cur_time = time.time()
+		container_name = f'jm_{cur_time}'
+		container_name = container_name[0:30]
 		if sudo_pwd is None:
-			sh_script = "{} {} {} {} {} {} {} {}"\
+			sh_script = "{} {} {} {} {} {} {} {} {}"\
 					.format(docker_src, docker_src_dir_host, docker_mo_dir_rela, 
-						compile_src, mo_name, docker_mo_dir_rela, 'me', 
+						container_name, compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {} {}"\
+			sh_script = "echo {} | sudo -S {} {} {} {} {} {} {} {} {}"\
 					.format(sudo_pwd, docker_src, docker_src_dir_host, docker_mo_dir_rela, 
-						compile_src, mo_name, docker_mo_dir_rela, 'me', 
+						container_name, compile_src, mo_name, docker_mo_dir_rela, 'me', 
 						is_soep)
 		cmp_logger.info('Calling compilation script...')
 		cmp_logger.debug('Compilation script is: {}'\
@@ -402,7 +405,8 @@ class Engine(object):
 				debug_solver: bool = False, 
 				rtol: float = 10e-4, 
 				maxh: float = 10,
-				return_res_files: bool = True):
+				return_res_files: bool = True,
+				timeout:int = None):
 		"""
 
 		Args:
@@ -460,18 +464,21 @@ class Engine(object):
 								+ fmu_in_docker_path\
 								.split(fmu_in_docker_dir)[-1]
 		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
+		cur_time = time.time()
+		container_name = f'jm_{cur_time}'
+		container_name = container_name[0:30]
 		if self._sudo_pwd is None:
-			sh_script = "{} {} {} {} -p {} -st {} -ft {} "\
+			sh_script = "{} {} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {} -maxh {}" \
 					.format(self._jm_docker_src, docker_src_dir_host,
-						fmu_in_docker_dir_rela, self._jm_simulate_src, 
+						fmu_in_docker_dir_rela, container_name, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol, maxh)
 		else:
-			sh_script = "echo {} | sudo -S {} {} {} {} -p {} -st {} -ft {} "\
+			sh_script = "echo {} | sudo -S {} {} {} {} {} -p {} -st {} -ft {} "\
 					"-ll {} -rtol {} -maxh {}" \
 					.format(self._sudo_pwd, self._jm_docker_src, docker_src_dir_host,
-						fmu_in_docker_dir_rela, self._jm_simulate_src, 
+						fmu_in_docker_dir_rela, container_name, self._jm_simulate_src, 
 						fmu_in_docker_path_rela, start_time, final_time,
 						self._log_level, rtol, maxh)
 		if len(res_names) > 0:
@@ -511,8 +518,23 @@ class Engine(object):
 		# two criteria for finishing: 
 		# 1: subprocess poll is None
 		# 2: standard output log pipeline captures 'Result_Directory'
-		while self._get_is_subprocess_running(jm_simulate_prcs):
-			pass
+		# 3: timed not out, if timed out, raise error
+		timeout = max(min((final_time - start_time)/2000, 3600), 10) if timeout is None else timeout
+		sim_logger.info(f'Simulation time out limit is {timeout}s')
+		while True:
+			passed_time = time.time() - cur_time
+			if self._get_is_subprocess_running(jm_simulate_prcs) is False:
+				break
+			if passed_time > timeout:
+				jm_simulate_prcs.kill()
+				# kill the related container
+				if self._sudo_pwd is None:
+					kill_docker_cmd = f'docker kill {container_name}'
+				else:
+					kill_docker_cmd = f'echo {self._sudo_pwd} | sudo -S docker kill {container_name}'
+				kill_docker_prcs = subprocess.Popen(kill_docker_cmd, shell = True, preexec_fn=os.setsid)
+				sim_logger.warning(f'Simulation timed out! Related docker container is killed by running command {kill_docker_prcs}')
+				raise RuntimeError('Simulation timed out!')
 		while True:
 			if len(threading_return) > 0:
 				break
