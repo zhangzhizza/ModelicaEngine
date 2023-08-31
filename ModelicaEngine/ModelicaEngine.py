@@ -3,6 +3,7 @@
 import os
 import csv
 import time
+import random
 import subprocess
 import threading
 import _thread
@@ -191,8 +192,10 @@ class Engine(object):
 		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
 		cmp_logger.info(docker_src)
 		cur_time = time.time()
-		container_name = f'jm_{cur_time}'
+		cur_time_rdm = cur_time + random.random() # to avoid container name conflict
+		container_name = f'jm_{cur_time_rdm}'
 		container_name = container_name[0:30]
+
 		if sudo_pwd is None:
 			sh_script = "{} {} {} {} {} {} {} {} {}"\
 					.format(docker_src, docker_src_dir_host, docker_mo_dir_rela, 
@@ -465,7 +468,8 @@ class Engine(object):
 								.split(fmu_in_docker_dir)[-1]
 		docker_src_dir_host = docker_src_dir.split('/mnt')[-1]
 		cur_time = time.time()
-		container_name = f'jm_{cur_time}'
+		cur_time_rdm = cur_time + random.random() # to avoid container name conflict
+		container_name = f'jm_{cur_time_rdm}'
 		container_name = container_name[0:30]
 		if self._sudo_pwd is None:
 			sh_script = "{} {} {} {} {} -p {} -st {} -ft {} "\
@@ -519,7 +523,7 @@ class Engine(object):
 		# 1: subprocess poll is None
 		# 2: standard output log pipeline captures 'Result_Directory'
 		# 3: timed not out, if timed out, raise error
-		timeout = max(min((final_time - start_time)/2000, 3600), 10) if timeout is None else timeout
+		timeout = max(min((final_time - start_time)/1000, 3600), 10) if timeout is None else timeout
 		sim_logger.info(f'Simulation time out limit is {timeout}s')
 		while True:
 			passed_time = time.time() - cur_time
@@ -534,7 +538,8 @@ class Engine(object):
 					kill_docker_cmd = f'echo {self._sudo_pwd} | sudo -S docker kill {container_name}'
 				kill_docker_prcs = subprocess.Popen(kill_docker_cmd, shell = True, preexec_fn=os.setsid)
 				sim_logger.warning(f'Simulation timed out! Related docker container is killed by running command {kill_docker_cmd}')
-				raise RuntimeError('Simulation timed out!')
+				raise RuntimeError('Simulation timed out (timeout limit: {timeout}s)!')
+		sim_logger.info(f'Simulation used {passed_time}s')
 		while True:
 			if len(threading_return) > 0:
 				break
