@@ -17,3 +17,47 @@ def find_files_in_dir(dir_name, file_ext = '.mo'):
 			if full_path[-ext_len: ].lower() == file_ext:
 				file_list.append(full_path)
 	return file_list
+
+
+def set_mo_params(mo_file_path, set_params_dict):
+	with open(mo_file_path, "r") as mo_file_r:
+		mo_content = mo_file_r.read()
+	set_params_done = {}
+	set_params_index_content = {} # remember the target lines and updated contents
+	mo_content_ls = mo_content.split('\n')
+	##########################################################
+	#### read through all lines ##############################
+	for i in range(len(mo_content_ls)):
+		content_i = mo_content_ls[i]
+		for param in set_params_dict:
+			# trying to locate the staring and ending index of number
+			# e.g. "parameter Real Hall2_FhumwNominal = 0.001 "Nominal water mass flow rate the humidifier";"
+			# the number 0.001 is the target to be changed
+			pattern_end_number = f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
+			pattern_end_string = f'parameter.*String.*{param}.*=.*[\'\"]'
+			pattern_start = f'parameter.*{param}\\s?='
+			match_end_number = re.search(pattern_end_number, content_i)
+			match_end_string = re.search(pattern_end_string, content_i)
+			match_start = re.search(pattern_start, content_i)
+			if match_start:
+				if match_end_number is not None:
+					match_end = match_end_number
+				elif match_end_string is not None:
+					match_end = match_end_string
+				new_content_i = list(content_i)
+				new_content_i[match_start.end(): match_end.end()] = str(set_params_dict[param])
+				new_content_i = ''.join(new_content_i)
+				set_params_index_content[i] = new_content_i
+				set_params_done[param] = True
+	# change the found lines
+	for set_line_i in set_params_index_content:
+		mo_content_ls[set_line_i] = set_params_index_content[set_line_i]
+	not_done_ls = []
+	for param in set_params_dict:
+		if param not in set_params_done:
+			not_done_ls.append(param)
+	if len(not_done_ls)>0:
+		raise ValueError(f'Parameters {','.join(not_done_ls)} cannot be found!')
+	mo_content = '\n'.join(mo_content_ls)
+	with open(mo_file_path, "w") as mo_file_w:
+		mo_file_w.write(mo_content)
