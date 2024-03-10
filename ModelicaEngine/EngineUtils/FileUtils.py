@@ -1,6 +1,7 @@
 # Author: Zhiang Zhang
 # First create: 2022-06-16
 import os
+import re
 
 def find_files_in_dir(dir_name, file_ext = '.mo'):
 	"""
@@ -33,7 +34,7 @@ def set_mo_params(mo_file_path, set_params_dict):
 			# trying to locate the staring and ending index of number
 			# e.g. "parameter Real Hall2_FhumwNominal = 0.001 "Nominal water mass flow rate the humidifier";"
 			# the number 0.001 is the target to be changed
-			pattern_end_number = f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
+			pattern_end_number = f'parameter.*{param}\\s*=\\s*([\\d.]+)'#f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
 			pattern_end_string = f'parameter.*String.*{param}.*=.*[\'\"]'
 			pattern_start = f'parameter.*{param}\\s?='
 			match_end_number = re.search(pattern_end_number, content_i)

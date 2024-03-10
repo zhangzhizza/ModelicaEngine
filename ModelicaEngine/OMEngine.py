@@ -18,8 +18,8 @@ from colorlog import ColoredFormatter
 
 from OMPython import ModelicaSystem
 
-from EngineUtils.Logger import Logger
-from EngineUtils.FileUtils import set_mo_params
+from .EngineUtils.Logger import Logger
+from .EngineUtils.FileUtils import set_mo_params
 
 
 LOG_FMT = ColoredFormatter(
