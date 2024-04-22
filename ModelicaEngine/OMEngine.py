@@ -128,7 +128,8 @@ class Engine():
 
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
-				method:str='dassl', rtol:float=1e-6, res_path:str=None):
+				method:str='dassl', rtol:float=1e-6, res_path:str=None,
+				res_step_time:int = None):
 		time.sleep(random.random())
 		this_request_id = self._sim_counter #time.time()
 		self._sim_counter += 1
@@ -142,7 +143,8 @@ class Engine():
 		res_df = available_worker.simulate(set_params_dict = set_params_dict, 
 									start_time = start_time, final_time = final_time, 
 									step_time = step_time, result_filter = result_filter, 
-									method = method, rtol = rtol, res_path = res_path_full)
+									method = method, rtol = rtol, res_path = res_path_full,
+									res_step_time = res_step_time)
 		time.sleep(0.1)
 		# Put worker back to the queue
 		self._engine_workers.put(available_worker)
@@ -185,7 +187,8 @@ class EngineWorker(object):
 			
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
-				method:str='dassl', rtol:float=1e-6, res_path:str=None):
+				method:str='dassl', rtol:float=1e-6, res_path:str=None,
+				res_step_time:int = None):
 		result_filter = copy.deepcopy(result_filter)
 		self._is_busy = True
 		# step1: set the simulation parameters
@@ -207,47 +210,47 @@ class EngineWorker(object):
                          			f'solver={method}'])
 		self._logger.info(f'Simulation options:{self._om.getSimulationOptions()}')
 		# step4: run simulation
-		try:
-			self._om.simulate()
-			# step5: collect results
-			if 'time' not in result_filter:
-				result_filter.append('time')
-			# try multiple times because sometime the results are not ready so soon
-			read_res_done = False
-			read_res_trials = 0
-			while read_res_done is False and read_res_trials <= 5:
-				try:
-					res = self._om.getSolutions(result_filter)
-					res = np.array(res).T
-					res_df = pd.DataFrame(res)
-					read_res_done = True
-				except:
-					read_res_trials += 1
-					self._logger.warning('Cannot find the simulation result file '\
-									f'after trying for {read_res_trials} times, will retry...')
-					time.sleep(0.2)
+		res_df = None
+		self._om.simulate()
+		# step5: collect results
+		if 'time' not in result_filter:
+			result_filter.append('time')
+		# try multiple times because sometime the results are not ready so soon
+		read_res_done = False
+		read_res_trials = 0
+		while read_res_done is False and read_res_trials <= 5:
+			try:
+				res = self._om.getSolutions(result_filter)
+				res = np.array(res).T
+				res_df = pd.DataFrame(res)
+				read_res_done = True
+			except:
+				read_res_trials += 1
+				self._logger.warning('Cannot find the simulation result file '\
+								f'after trying for {read_res_trials} times, will retry...')
+				time.sleep(0.2)
 
-			if read_res_done is False:
-				self._logger.error('Cannot find the simulation result file '\
-									f'after trying for {read_res_trials - 1} times!')
-				raise RuntimeError('Cannot find the simulation result file '\
-									f'after trying for {read_res_trials - 1} times!')
-			else:
-				res_df.columns = result_filter
-				res_df = res_df.set_index(res_df['time'])
-				res_df = res_df[~res_df.index.duplicated(keep='first')]
-				res_df.index = pd.TimedeltaIndex(res_df.index, unit='S')
+		if read_res_done is False:
+			self._logger.error('Cannot find the simulation result file '\
+								f'after trying for {read_res_trials - 1} times!')
+			raise RuntimeError('Cannot find the simulation result file '\
+								f'after trying for {read_res_trials - 1} times!')
+		else:
+			res_df.columns = result_filter
+			res_df = res_df.set_index(res_df['time'])
+			res_df = res_df[~res_df.index.duplicated(keep='first')]
+			res_df.index = pd.TimedeltaIndex(res_df.index, unit='S')
+			if res_step_time is None:
 				res_df = res_df.resample(f'{step_time}S').mean()
-				# step6: write the results
-				if res_path is not None:
-					res_df.to_csv(res_path)
-				self._is_busy = False
-				self._logger.info(f'Simulation completed!')
-		except Exception as e:
-			self._logger.error(f'Exception occurred: {e}, {traceback.print_exc()}')
-			self._logger.debug(f'set_params_dict:{set_params_dict}')
-			self._logger.debug(f'res:{res}')
-		return res_df
+			else:
+				res_df = res_df.resample(f'{res_step_time}S').mean()
+			# step6: write the results
+			if res_path is not None:
+				res_df.to_csv(res_path)
+			self._is_busy = False
+			self._logger.info(f'Simulation completed!')
+			return res_df
+		
 
 	@property
 	def is_busy(self):
