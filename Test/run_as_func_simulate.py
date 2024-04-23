@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 from ModelicaEngine.FMUCSEngine import FMUCSEngine
 
+df = pd.read_csv(path)
+df['time'] = pd.to_datetime(df['time'])
+df = df.set_index('time')
+
 
 def main(u, config = None):
 
@@ -21,5 +25,6 @@ def main(u, config = None):
 		print(inputs_i.values)
 		print(inputs_i.columns)
 
-		engine.simulate(step_size = 1, inputs = inputs_i, #start_values = {'chr_flow_nom': 300}, 
+		res_i = engine.simulate(step_size = 1, inputs = inputs_i, #start_values = {'chr_flow_nom': 300}, 
                 outputs = ['chw_ret_m.m_flow'])
+		# res_i.iloc[-1] 只用仿真后的最后一行的结果
