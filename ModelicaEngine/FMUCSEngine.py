@@ -67,6 +67,7 @@ class FMUCSEngine(object):
         included. So a separate dll file needs to be included in the fmu. It applies to Windows
         system. 
         """
+        logger.info(f'Checking the completeness of the fmu...')
         # Extract the fmu file
         fmu_unzipped_dir = f'{working_dir}{os.sep}fmu_temp'
         if not os.path.exists(fmu_unzipped_dir):
@@ -78,20 +79,34 @@ class FMUCSEngine(object):
         logger.debug(f'Contents in {fmu_path}: {fmu_dirs}')
         if 'win64' in fmu_dirs:
             lib_dir = f'{fmu_unzipped_dir}{os.sep}binaries{os.sep}win64'
-            dll_path = f'{THIS_DIR}{os.sep}Resources{os.sep}'\
+            libwinp_dll_path = f'{THIS_DIR}{os.sep}Resources{os.sep}'\
                         f'FMUCSEngine{os.sep}lib{os.sep}64bit{os.sep}libwinpthread-1.dll'
+            cvode_dll_path = f'{THIS_DIR}{os.sep}Resources{os.sep}'\
+                        f'FMUCSEngine{os.sep}lib{os.sep}64bit{os.sep}libsundials_cvode.dll'
         elif 'win32' in fmu_dirs:
             lib_dir = f'{fmu_unzipped_dir}{os.sep}binaries{os.sep}win32'
-            dll_path = f'{THIS_DIR}{os.sep}Resources{os.sep}'\
+            libwinp_dll_path = f'{THIS_DIR}{os.sep}Resources{os.sep}'\
                         f'FMUCSEngine{os.sep}lib{os.sep}32bit{os.sep}libwinpthread-1.dll'
-        if not os.path.exists(f'{lib_dir}{os.sep}libwinpthread-1.dll'):
-            shutil.copy(dll_path, lib_dir)
-            if logger is not None:
-                logger.info(f'A libwinpthread-1.dll is copied into {lib_dir}')
+            # TO-DO: add win32 bit cvode dll
+        logger.debug(f'lib_dir:{lib_dir}')
+        to_checked_files = [f'{lib_dir}{os.sep}libwinpthread-1.dll',
+                            f'{lib_dir}{os.sep}libsundials_cvode.dll']
+        to_copied_files = [libwinp_dll_path, cvode_dll_path]
+        for file_i in range(len(to_checked_files)):
+            to_checked_file = to_checked_files[file_i]
+            to_copied_file = to_copied_files[file_i]
+            if not os.path.exists(to_checked_file):
+                shutil.copy(to_copied_file, lib_dir)
+                if logger is not None:
+                    logger.info(f'{to_copied_file.split(os.sep)[-1]} is copied into {lib_dir}')
+            else:
+                logger.debug(f'{to_checked_file} is existing')
         # Zip the fmu again
         zipped_path = shutil.make_archive(fmu_path, 'zip', fmu_unzipped_dir)
         new_fmu_path = fmu_path.split('.fmu')[0] + '_dllfixed.fmu'
         shutil.move(zipped_path, new_fmu_path)
+        logger.info(f'New fmu is moved to {new_fmu_path}')
+        shutil.rmtree(fmu_unzipped_dir)
         return new_fmu_path
 
     def reset(self, input_names: list, output_names: list, tolerance = 1e-4,
@@ -183,8 +198,13 @@ class FMUCSEngine(object):
         self._comm_step_multiplier = None
 
 
-    def simulate(self, step_size:int = 60, inputs:pd.DataFrame = None,
-                outputs:list = [], start_values: dict = {}):
+    def simulate(self, step_size:float = 60,
+                inputs:pd.DataFrame = None,
+                outputs:list = [], start_values: dict = {}, 
+                relative_tolerance = 1e-4, do_fmi_logging = False,
+                dynamic_step_size_retry:bool = False,
+                step_size_lower_thres:float = 1e-4,
+                step_size_decay_factor:int = 5):
         """
         Simulate the fmu from the start to the end time, non-interactive.
 
@@ -200,6 +220,7 @@ class FMUCSEngine(object):
         start_values: dict
             Start values of simulation, {'varaible_name': variable_value}
         """
+        time_st = time.time()
         self._logger.info('Start simulation...')
         # Process inputs
         if inputs is not None:
@@ -207,31 +228,66 @@ class FMUCSEngine(object):
             inputs = np.array([tuple(row_i) for row_i in inputs.values], dtype=[(name, float) 
                                                     for name in inputs.columns])
         else:
-            inputs = []
+            inputs = None
         self._logger.debug(f'Simulation inputs: {inputs}')
         # Process parameters to be set
         vrs = {}
         for variable in self._model_description.modelVariables:
             vrs[variable.name] = variable.valueReference
 
-        
-        
-        result = simulate_fmu(
-            filename = self._fmu_path,
-            validate = False,
-            start_time = self._sim_st_time,
-            stop_time = self._sim_ed_time,
-            solver = 'CVode',
-            step_size = step_size,
-            output_interval = step_size,
-            record_events = True,
-            start_values = start_values,
-            input = inputs,
-            output=outputs,
-            fmi_call_logger=lambda s: print('[FMI] ' + s))
+        if dynamic_step_size_retry is False:
+            result = simulate_fmu(
+                filename = self._fmu_path,
+                validate = False,
+                start_time = self._sim_st_time,
+                stop_time = self._sim_ed_time,
+                step_size = step_size,
+                output_interval = step_size,
+                record_events = True,
+                start_values = start_values,
+                input = inputs,
+                output=outputs,
+                fmi_call_logger= lambda s: print('[FMI] ' + s) if do_fmi_logging else None,
+                relative_tolerance = relative_tolerance)
+        else:
+            # Dynamically retry smaller step size until reaching the step size lower threshold
+            step_size_this = step_size
+            result = None
+            while True:
+                if step_size_this < step_size_lower_thres:
+                    break
+                else:
+                    try:
+                        self._logger.info(f'Try simulating with step size {step_size_this}')
+                        result = simulate_fmu(
+                            filename = self._fmu_path,
+                            validate = False,
+                            start_time = self._sim_st_time,
+                            stop_time = self._sim_ed_time,
+                            step_size = step_size_this,
+                            output_interval = step_size_this,
+                            record_events = True,
+                            start_values = start_values,
+                            input = inputs,
+                            output=outputs,
+                            fmi_call_logger= lambda s: print('[FMI] ' + s) if do_fmi_logging else None,
+                            relative_tolerance = relative_tolerance)
+                        self._logger.info(f'Simulation successful with step size {step_size_this}')
+                        break
+                    except:
+                        self._logger.warning(f'Simulation with step size {step_size_this} failed, continue trying...')
+                        step_size_this = step_size_this/step_size_decay_factor
+            if result is None:
+                raise RuntimeError(f'Simulation failed after trying all simulation time steps!'\
+                                    f' Consider reduce the step_size_lower_thres (currently {step_size_lower_thres})')
+
+
         result_col_names = ['time']
         result_col_names.extend(outputs)
         result = pd.DataFrame(result, columns = result_col_names)
+        time_ed = time.time()
+        time_duration = time_ed - time_st
+        self._logger.info(f'Simulation time duration: {time_duration}s')
         self._logger.info(f'Simulation results: \n{result}')
         return result
 

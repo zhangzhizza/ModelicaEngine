@@ -14,6 +14,6 @@ print(inputs.columns)
 inputs_array = np.array([(0, 100), (10, 10000)], dtype = [('a', 'f4'), ('b', 'f4')])
 print(inputs_array)
 
-res = engine.simulate(step_size = 1, inputs = inputs, #start_values = {'chr_flow_nom': 300}, 
+res = engine.simulate(step_size = 0.001, inputs = inputs, #start_values = {'chr_flow_nom': 300}, 
                 outputs = ['chw_ret_m.m_flow'])
 print(res)
