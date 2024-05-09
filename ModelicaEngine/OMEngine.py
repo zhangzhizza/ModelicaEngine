@@ -1,130 +1,17 @@
 # Author: Zhiang Zhang
 # First create: 2024-01-24
-import argparse
 import os
-import glob
 import time
-import copy
-import shutil
 import random
-import threading
 import traceback
+import asyncio
+import threading
 
-import pandas as pd
-import numpy as np
+from asyncua import Client
 
-from queue import Queue
-from colorlog import ColoredFormatter
+from .OMEngineAbstract import OMEngineAbstract
 
-from OMPython import ModelicaSystem
-
-from .EngineUtils.Logger import Logger
-from .EngineUtils.FileUtils import set_mo_params
-
-
-LOG_FMT = ColoredFormatter(
-    "%(log_color)s [%(asctime)s] %(name)s %(levelname)-3s%(reset)s %(message)s",
-    datefmt=None,
-    reset=True,
-    log_colors={
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'red,bg_white',
-    },
-    secondary_log_colors={},
-    style='%')
-
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-
-class Engine():
-	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
-					set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1):
-		self._logger = Logger().getLogger('OMEngine-{}'\
-										.format(mo_name),
-                                        log_level, LOG_FMT)
-		self._mo_path = os.path.abspath(mo_path).replace('\\', '/')
-		# set model parameters before compilation
-		if len(set_params_dict) > 0:
-			mo_file_name = os.path.splitext(os.path.basename(self._mo_path))[0]
-			new_mo_path = os.path.dirname(self._mo_path) + '/' \
-						+ f'{mo_file_name}_set{time.time()}.mo'
-			shutil.copyfile(self._mo_path, new_mo_path)
-			self._mo_path = new_mo_path
-			set_mo_params(self._mo_path, set_params_dict)
-			self._logger.info(f'Model parameter set before compilation, '\
-								f'set parameter: {set_params_dict}, '\
-								f'new Modelica file is at {new_mo_path}')
-		self._library_paths = library_paths
-		self._log_level = log_level
-		self._multiprocesses = multiprocesses
-		self._engine_workers = Queue(maxsize=multiprocesses)
-		self._cwd = os.getcwd()
-		self._mo_name = mo_name
-		self._logger.info(f'Preparing engine workers ({multiprocesses} in total)...')
-		self._sim_counter = 0
-		threads = []
-		for i in range(multiprocesses):
-			thread_i = threading.Thread(target=self._add_worker_to_list, 
-											args=(i, ))
-			threads.append(thread_i)
-			thread_i.start()
-			time.sleep(0.2)
-		
-		for thread in threads:
-			thread.join()
-		time.sleep(0.5)
-
-	def set_params_recompile(self, set_params_dict:dict):
-		set_done = False
-		print_done = False
-		done_count = 0
-		self._logger.info('Performing set_params_recompile... ')
-		threads = []
-		while done_count < self._multiprocesses:
-			available_worker = self._find_available_worker(request_id = 'set_params_recompile')
-			self._logger.info(f'Performing set_params_recompile for worker {available_worker.worker_name}... ')
-			thread_i = threading.Thread(target=self._set_params_recompile_helper,
-										args=(available_worker, set_params_dict, ))
-			threads.append(thread_i)
-			thread_i.start()
-			time.sleep(0.2)
-			done_count += 1
-			print(done_count)
-		for thread in threads:
-			thread.join()
-		self._logger.info('set_params_recompile completed!')
-
-	def _set_params_recompile_helper(self, worker, set_params_dict:dict):
-		worker.set_params_recompile(set_params_dict=set_params_dict)
-		self._engine_workers.put(worker)
-
-
-	def get_params(self, param_names:list) -> dict:
-		available_worker = self._find_available_worker(request_id = 'get_params')
-		param_vals = available_worker.get_params(param_names)
-		self._engine_workers.put(available_worker)
-		return param_vals
-
-	def _add_worker_to_list(self, worker_id):
-		library_paths = []
-		for path in self._library_paths:
-			path = path.replace('\\', '/')
-			library_paths.append(path)
-		this_worker = EngineWorker(self._mo_name, 
-									self._mo_path, 
-									library_paths = library_paths,
-									log_level=self._log_level, 
-									worker_id = worker_id)
-		self._engine_workers.put(this_worker)
-
-
-	def _find_available_worker(self, request_id):
-		self._logger.info(f'Looking for a available worker for the request {request_id} ... ')
-		available_worker = self._engine_workers.get()
-		self._logger.info(f'Worker {available_worker.worker_name} is available for the request {request_id}.')
-		return available_worker
+class Engine(OMEngineAbstract):
 
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
@@ -151,113 +38,186 @@ class Engine():
 		self._logger.info(f'Simulation request {this_request_id} is completed!')
 		return res_df
 
-class EngineWorker(object):
+	@property
+	def engine_type(self):
+		return 'OMEngine'
+
+class InteractiveEngine(OMEngineAbstract):
 
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
-						log_level:str = 'INFO', worker_id:int = 0):
-		self._mo_path = mo_path
-		self._mo_full_path = os.path.abspath(mo_path)
-		self._mo_name = mo_name
-		self._worker_name = '{}Worker-{}'.format(self._mo_name, worker_id)
-		self._logger = Logger().getLogger(self._worker_name, log_level, LOG_FMT)
-		self._mo_full_path = self._mo_full_path.replace('\\', '/')
-		library_paths = [] if library_paths is None else library_paths
-		library_paths.append(mo_path)
+				set_params_dict:dict={}, port:int=4802, start_time:int=0, 
+				final_time:int=3600, step_time:int=1, u_names:list=[],
+				result_filter:list=[], method:str='dassl', rtol:float=1e-6, 
+				res_path:str=None, res_step_time:int=60, log_level = 'INFO'):
+		super().__init__(mo_name = mo_name, mo_path = mo_path, library_paths = library_paths, 
+						set_params_dict = set_params_dict, log_level = log_level, multiprocesses = 1)
+		self._port = port
+		self._start_time = start_time
+		self._final_time = final_time
+		self._step_time = step_time
+		self._method = method
+		self._rtol = rtol
+		self._u_names = u_names
+		self._result_filter = result_filter
+		self._res_path = res_path
+		self._res_step_time = res_step_time
+		self._opcua_u_paths = None
+		self._opcua_y_paths = None
+		self._opcua_step_path = None
+		self._opcua_time_path = None
+		self._opcua_terminate_path = None
+		self._is_reset = False
+		self._om_opcua_client = None
+		self._sim_executor_stopper = None
+		self._sim_executor = None
+		self._engine_worker = None
+		self._opc_client = None
+
+	async def _get_opc_object_path_str(self, path_of_nodes): 
+		str_path = []
+		for node_i in path_of_nodes:
+			browse_name = await node_i.read_browse_name()
+			str_path.append(browse_name.to_string())
+		return str_path
+
+	async def _get_omi_opc_pathsNclient(self):
+		url = f'opc.tcp://localhost:{self._port}'
+		self._logger.info(f'OpenModelica OPC-UA address: {url}')
+		client = Client(url=url)
+		await client.connect()
+		self._logger.info(f'An OPC-UA client is established {client}')
+		children = await client.nodes.root.get_children()
+		objects_root = children[0]
+		objects = await objects_root.get_children()
+		uname_path_dict = {}
+		yname_path_dict = {}
+		step_path = None
+		time_path = None
+		terminate_path = None
+
+		for i in range(len(objects)):
+			obj_name = await objects[i].read_browse_name()
+			obj_name_val = obj_name.Name
+			obj_path = await objects[i].get_path()
+			if obj_name_val in self._u_names:
+				uname_path_dict[obj_name_val] = await self._get_opc_object_path_str(obj_path)
+			if obj_name_val in self._result_filter:
+				yname_path_dict[obj_name_val] = await self._get_opc_object_path_str(obj_path)
+			if obj_name_val == 'OpenModelica.step':
+				step_path = await self._get_opc_object_path_str(obj_path)
+			if obj_name_val == 'time':
+				time_path = await self._get_opc_object_path_str(obj_path)
+			if obj_name_val == 'OpenModelica.terminate':
+				terminate_path = await self._get_opc_object_path_str(obj_path)
+		u_paths = []
+		y_paths = []
+		for uname in self._u_names:
+			u_paths.append(uname_path_dict[uname])
+		for yname in self._result_filter:
+			y_paths.append(yname_path_dict[yname])
+		self._logger.info(f'OPC-UA control variable paths: {u_paths}')
+		self._logger.info(f'OPC-UA output variable paths: {y_paths}')
+		self._logger.info(f'OPC-UA \'step\' path: {step_path}')
+		self._logger.info(f'OPC-UA \'time\' path: {time_path}')
+		self._logger.info(f'OPC-UA \'terminate\' path: {terminate_path}')
+
+		return u_paths, y_paths, step_path, time_path, terminate_path, client
+
+	async def reset(self):
+		await self._end_simulation()
+		self._logger.info(f'Resetting simulation...')
+		self._engine_worker = self._find_available_worker(request_id = 1)
+		self._sim_executor_stopper = threading.Event()
+		self._sim_executor = threading.Thread(target=self._engine_worker.simulate_interactive, 
+											kwargs={'port':self._port, 'set_params_dict':{}, 
+										'start_time':self._start_time, 'final_time':self._final_time, 
+										'step_time':self._step_time, 'result_filter':self._result_filter, 
+										'method':self._method, 'rtol':self._rtol, 'res_path':self._res_path,
+									    'res_step_time':self._res_step_time, 'simflag':''})
+		self._sim_executor.daemon = True 
+		self._sim_executor.start()
+		time.sleep(5) # wait for the OPC server to be established TO-DO: automatically check whether the server is ready
+		self._logger.info(f'Interactive OpenModelica simulation OPC-UA server is running now')
 		try:
-			self._om = ModelicaSystem(fileName = None, # Here must be None when given library paths, a bug of OMPython 
-										modelName = self._mo_name, 
-										lmodel = library_paths)
-			self._is_busy = False
-			self._logger.info('Worker started successfully!')
+			self._opcua_u_paths, self._opcua_y_paths, self._opcua_step_path, \
+			self._opcua_time_path, self._opcua_terminate_path, self._opc_client = await self._get_omi_opc_pathsNclient()
 		except Exception as e:
-			self._logger.error(f'Exception occurred: {e}, {traceback.print_exc()}')
+			self._logger.error(f'{e}\n{traceback.print_exc()}')
+		self._is_reset = True
+		self._logger.info(f'An OPC-UA client is also running {self._opc_client}')
 
-	def set_params_recompile(self, set_params_dict:dict):
-		set_params_list = []
-		for param in set_params_dict:
-			set_params_list.append(f'{param}={set_params_dict[param]}')
-		self._logger.info(f'setParameters input list is {set_params_list}')
-		self._om.setParameters(set_params_list)
-		self._om.buildModel()
-		self._logger.info(f'Recompilation completed!')	
+	async def _end_simulation(self):
+		if self._opc_client is not None:
+			# Terminate the simulation if not
+			while True:
+				try:
+					# terminate_obj = await self._client.nodes.root.get_child(self._opcua_terminate_path[1:])
+					#await terminate_obj.set_value(True)
+					# NOTE: don't know why, have to send another step in order to terminate the simulation
+					step_obj = await self._opc_client.nodes.root.get_child(self._opcua_step_path[1:])
+					await step_obj.set_value(True)
+				except:
+					break
+			# Disconnect with the OPC server
+			await self._opc_client.disconnect()
+			self._opc_client = None
+		if self._engine_worker is not None:
+			self._engine_workers.put(self._engine_worker)
+		if self._sim_executor_stopper is not None and self._sim_executor is not None:
+			self._sim_executor_stopper.set()
+			self._sim_executor.join()
+			self._logger.info('The simulation threading has been stopped')
+		self._opcua_u_paths = None
+		self._opcua_y_paths = None
+		self._opcua_step_path = None
+		self._opcua_time_path = None
+		self._opcua_terminate_path = None
+		self._is_reset = False
+		self._sim_executor_stopper = None
+		self._sim_executor = None
+		self._engine_worker = None
 
-	def get_params(self, param_names:list) -> dict:
-		param_vals = self._om.getParameters(param_names)
-		return param_vals
-			
-	def simulate(self, set_params_dict:dict, start_time:int, 
-				final_time:int, step_time:int, result_filter:list, 
-				method:str='dassl', rtol:float=1e-6, res_path:str=None,
-				res_step_time:int = None):
-		result_filter = copy.deepcopy(result_filter)
-		self._is_busy = True
-		# step1: set the simulation parameters
-		set_params_list = []
-		for param in set_params_dict:
-			set_params_list.append(f'{param}={set_params_dict[param]}')
-		self._logger.info(f'setParameters input list is {set_params_list}')
-		self._om.setParameters(set_params_list)
-		# step2: confirm the parameters are set
-		for param in set_params_dict:
-			to_set_val = set_params_dict[param]
-			mo_val = float(self._om.getParameters([param])[0])
-			if abs(mo_val - to_set_val) > 1e-4:
-				self._logger.warning(f'{param} is not set! It should be {to_set_val},'\
-									 f'but it is {mo_val} in the model!')
-		# step3: set simulation options
-		self._om.setSimulationOptions([f"startTime={start_time}",f"stopTime={final_time}",
-                         			f"stepSize={step_time}", f'tolerance={rtol}',
-                         			f'solver={method}'])
-		self._logger.info(f'Simulation options:{self._om.getSimulationOptions()}')
-		# step4: run simulation
-		res_df = None
-		self._om.simulate()
-		# step5: collect results
-		if 'time' not in result_filter:
-			result_filter.append('time')
-		# try multiple times because sometime the results are not ready so soon
-		read_res_done = False
-		read_res_trials = 0
-		while read_res_done is False and read_res_trials <= 5:
-			try:
-				res = self._om.getSolutions(result_filter)
-				res = np.array(res).T
-				res_df = pd.DataFrame(res)
-				read_res_done = True
-			except:
-				read_res_trials += 1
-				self._logger.warning('Cannot find the simulation result file '\
-								f'after trying for {read_res_trials} times, will retry...')
-				time.sleep(0.2)
-
-		if read_res_done is False:
-			self._logger.error('Cannot find the simulation result file '\
-								f'after trying for {read_res_trials - 1} times!')
-			raise RuntimeError('Cannot find the simulation result file '\
-								f'after trying for {read_res_trials - 1} times!')
-		else:
-			res_df.columns = result_filter
-			res_df = res_df.set_index(res_df['time'])
-			res_df = res_df[~res_df.index.duplicated(keep='first')]
-			res_df.index = pd.TimedeltaIndex(res_df.index, unit='S')
-			if res_step_time is None:
-				res_df = res_df.resample(f'{step_time}S').mean()
+	async def step(self, u:list):
+		self._logger.info(f'Step: u:{u}')
+		if self._is_reset is False:
+			raise RuntimeError('The simulation is not setted yet, run reset() first!')
+		try:
+			states, sim_time = await self._step(u)
+			if sim_time >= self._final_time:
+				is_terminal = True
+				await self._end_simulation()
 			else:
-				res_df = res_df.resample(f'{res_step_time}S').mean()
-			# step6: write the results
-			if res_path is not None:
-				res_df.to_csv(res_path)
-			self._is_busy = False
-			self._logger.info(f'Simulation completed!')
-			return res_df
-		
+				is_terminal = False
+			self._logger.info(f'Step: states: {states}, is_terminal: {is_terminal}, sim_time: {sim_time}')
+		except Exception as e:
+			self._logger.error(f'{e}\n{traceback.print_exc()}')
+		return states, is_terminal, sim_time
+
+	async def _step(self, u:list):
+		# 1. Set simulation values using OPC-UA
+		for u_i in range(len(u)):
+			opcua_u_object = await self._opc_client.nodes.root.get_child(self._opcua_u_paths[u_i][1:])
+			await opcua_u_object.set_value(float(u[u_i]))
+		# 2. Set step to True
+		sim_time_object = await self._opc_client.nodes.root.get_child(self._opcua_time_path[1:])
+		time_bf_step = await sim_time_object.get_value()
+		step_obj = await self._opc_client.nodes.root.get_child(self._opcua_step_path[1:])
+		await step_obj.set_value(True)
+		# 3. Read the outputs
+		is_step_finished = False
+		while is_step_finished is False:
+			cur_time = await sim_time_object.get_value()
+			if cur_time > time_bf_step:
+				is_step_finished = True
+		states = []
+		for opcua_y_path in self._opcua_y_paths:
+			state_i_object = await self._opc_client.nodes.root.get_child(opcua_y_path[1:])
+			state_i = await state_i_object.get_value()
+			states.append(state_i)
+		# 4. Read the current simulation time
+		sim_time = await sim_time_object.get_value()
+		return states, sim_time
 
 	@property
-	def is_busy(self):
-		return self._is_busy
-
-	@property
-	def worker_name(self):
-		return self._worker_name
-	
-	
+	def engine_type(self):
+		return 'OMEngine_IA'
