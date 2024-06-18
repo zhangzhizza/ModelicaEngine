@@ -36,17 +36,23 @@ LOG_FMT = ColoredFormatter(
 class OMEngineAbstract(ABC):
 
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
-				set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1):
+				set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1,
+				working_dir:str = None, inplace_set = False):
 		self._logger = Logger().getLogger('{}-{}'.format(self.engine_type, mo_name),
                                         log_level, LOG_FMT)
 		self._mo_path = os.path.abspath(mo_path).replace('\\', '/')
 		# set model parameters before compilation
 		if len(set_params_dict) > 0:
 			mo_file_name = os.path.splitext(os.path.basename(self._mo_path))[0]
-			new_mo_path = os.path.dirname(self._mo_path) + '/' \
+			if working_dir is None:
+				working_dir = os.path.dirname(self._mo_path)
+			if not inplace_set:
+				new_mo_path = working_dir + '/' \
 						+ f'{mo_file_name}_set{time.time()}.mo'
-			shutil.copyfile(self._mo_path, new_mo_path)
-			self._mo_path = new_mo_path
+				shutil.copyfile(self._mo_path, new_mo_path)
+				self._mo_path = new_mo_path
+			else:
+				new_mo_path = self._mo_path
 			set_mo_params(self._mo_path, set_params_dict)
 			self._logger.info(f'Model parameter set before compilation, '\
 								f'set parameter: {set_params_dict}, '\
@@ -70,6 +76,11 @@ class OMEngineAbstract(ABC):
 		for thread in threads:
 			thread.join()
 		time.sleep(0.5)
+
+	def set_params_get_new_mo_file(self, set_params_dict:dict, new_mo_path:str):
+		shutil.copyfile(self._mo_path, new_mo_path)
+		set_mo_params(new_mo_path, set_params_dict)
+		self._logger.info(f'A new Modelica file with parameters {set_params_dict} is written in {new_mo_path}')
 
 	def set_params_recompile(self, set_params_dict:dict):
 		set_done = False
@@ -118,6 +129,15 @@ class OMEngineAbstract(ABC):
 		available_worker = self._engine_workers.get()
 		self._logger.info(f'Worker {available_worker.worker_name} is available for the request {request_id}.')
 		return available_worker
+
+	@property
+	def mo_name(self):
+		return self._mo_name
+
+	@property
+	def mo_path(self):
+		return self._mo_path
+	
 
 	@property
 	@abstractmethod

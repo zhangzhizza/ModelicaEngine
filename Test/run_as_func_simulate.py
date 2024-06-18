@@ -46,5 +46,5 @@ def main(u, sim_ed_time, sim_step_time, dynamic_step_size_retry,
 		#print(res_i)# 只用仿真后的最后一行的结果
 		res_i.to_csv(f'out{row_i}.csv')
 
-main(df, sim_ed_time = 600, sim_step_time = 0.1, dynamic_step_size_retry = True, step_size_decay_factor = 2)
+main(df, sim_ed_time = 9600, sim_step_time = 0.1, dynamic_step_size_retry = True, step_size_decay_factor = 2)
                 
