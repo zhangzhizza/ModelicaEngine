@@ -37,7 +37,7 @@ class OMEngineAbstract(ABC):
 
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
 				set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1,
-				working_dir:str = None, inplace_set = False):
+				working_dir:str = None, inplace_set = False, additional_cmds: str = None):
 		self._logger = Logger().getLogger('{}-{}'.format(self.engine_type, mo_name),
                                         log_level, LOG_FMT)
 		self._mo_path = os.path.abspath(mo_path).replace('\\', '/')
@@ -65,6 +65,7 @@ class OMEngineAbstract(ABC):
 		self._multiprocesses = multiprocesses
 		self._engine_workers = Queue(maxsize=multiprocesses)
 		self._sim_counter = 0
+		self._additional_cmds = additional_cmds
 		threads = []
 		for i in range(multiprocesses):
 			thread_i = threading.Thread(target=self._add_worker_to_list, 
@@ -121,7 +122,8 @@ class OMEngineAbstract(ABC):
 									self._mo_path, 
 									library_paths = library_paths,
 									log_level=self._log_level, 
-									worker_id = worker_id)
+									worker_id = worker_id,
+									additional_cmds = self._additional_cmds)
 		self._engine_workers.put(this_worker)
 
 	def _find_available_worker(self, request_id):
@@ -148,7 +150,8 @@ class OMEngineAbstract(ABC):
 class EngineWorker(object):
 
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
-						log_level:str = 'INFO', worker_id:int = 0):
+						log_level:str = 'INFO', worker_id:int = 0,
+						additional_cmds: str = None):
 		self._mo_path = mo_path
 		self._mo_full_path = os.path.abspath(mo_path)
 		self._mo_name = mo_name
@@ -160,7 +163,8 @@ class EngineWorker(object):
 		try:
 			self._om = ModelicaSystem(fileName = None, # Here must be None when given library paths, a bug of OMPython 
 										modelName = self._mo_name, 
-										lmodel = library_paths)
+										lmodel = library_paths,
+										commandLineOptions = additional_cmds)
 			self._is_busy = False
 			self._logger.info('Worker started successfully!')
 		except Exception as e:
