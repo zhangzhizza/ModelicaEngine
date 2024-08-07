@@ -58,7 +58,8 @@ def set_mo_params(mo_file_path, set_params_dict):
 		if param not in set_params_done:
 			not_done_ls.append(param)
 	if len(not_done_ls)>0:
-		raise ValueError(f'Parameters {','.join(not_done_ls)} cannot be found!')
+		not_done_ls_str = ','.join(not_done_ls)
+		raise ValueError(f'Parameters {not_done_ls_str} cannot be found!')
 	mo_content = '\n'.join(mo_content_ls)
 	with open(mo_file_path, "w") as mo_file_w:
 		mo_file_w.write(mo_content)
