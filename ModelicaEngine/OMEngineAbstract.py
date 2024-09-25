@@ -195,6 +195,7 @@ class EngineWorker(object):
 		# step2: confirm the parameters are set
 		for param in set_params_dict:
 			to_set_val = set_params_dict[param]
+			self._logger.info(f'Checking {param}...')
 			mo_val = float(self._om.getParameters([param])[0])
 			if abs(mo_val - to_set_val) > 1e-4:
 				self._logger.warning(f'{param} is not set! It should be {to_set_val},'\
