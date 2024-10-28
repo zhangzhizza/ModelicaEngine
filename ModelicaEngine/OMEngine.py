@@ -16,7 +16,7 @@ class Engine(OMEngineAbstract):
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
 				method:str='dassl', rtol:float=1e-6, res_path:str=None,
-				res_step_time:int = None):
+				res_step_time:int = None, simflag:str = '', timeout:int = None):
 		time.sleep(random.random())
 		this_request_id = self._sim_counter #time.time()
 		self._sim_counter += 1
@@ -31,7 +31,7 @@ class Engine(OMEngineAbstract):
 									start_time = start_time, final_time = final_time, 
 									step_time = step_time, result_filter = result_filter, 
 									method = method, rtol = rtol, res_path = res_path_full,
-									res_step_time = res_step_time)
+									res_step_time = res_step_time, simflag = simflag, timeout = timeout)
 		time.sleep(0.1)
 		# Put worker back to the queue
 		self._engine_workers.put(available_worker)

@@ -252,23 +252,27 @@ class EngineWorker(object):
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
 				method:str='dassl', rtol:float=1e-6, res_path:str=None,
-				res_step_time:int = None, simflag:str = ''):
+				res_step_time:int = None, simflag:str = '', timeout = None):
 		self._is_busy = True
 		# step1: set simulation parameters and options
 		self._set_simulation_options(set_params_dict = set_params_dict, start_time = start_time, 
 								final_time = final_time, step_time = step_time, method = method, 
 								rtol = rtol)
 		# step4: run simulation
-		if len(simflag) == 0:
-			self._om.simulate()
-		else:
-			self._om.simulate(simflag)
-		# step5: collect results
-		res_df = self._get_simulation_results(result_filter = result_filter, 
+		try:
+			if len(simflag) == 0:
+				self._om.simulate(verbose = False, timeout = timeout)
+			else:
+				self._om.simulate(simflags = simflag, verbose = False, timeout = timeout)
+			# step5: collect results
+			res_df = self._get_simulation_results(result_filter = result_filter, 
 									res_step_time = res_step_time, step_time = step_time,
 									res_path = res_path)
+			self._logger.info(f'Simulation completed!')
+		except Exception as e:
+			self._logger.error(f'Simulation failed! Exception: {e}')
+			res_df = None
 		self._is_busy = False
-		self._logger.info(f'Simulation completed!')
 		return res_df
 
 	def simulate_interactive(self, port:int, set_params_dict:dict, start_time:int, 
