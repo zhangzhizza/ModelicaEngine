@@ -252,7 +252,8 @@ class EngineWorker(object):
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
 				method:str='dassl', rtol:float=1e-6, res_path:str=None,
-				res_step_time:int = None, simflag:str = '', timeout = None):
+				res_step_time:int = None, simflag:str = '', timeout = None,
+				verbose = False):
 		self._is_busy = True
 		# step1: set simulation parameters and options
 		self._set_simulation_options(set_params_dict = set_params_dict, start_time = start_time, 
@@ -261,14 +262,15 @@ class EngineWorker(object):
 		# step4: run simulation
 		try:
 			if len(simflag) == 0:
-				self._om.simulate(verbose = False, timeout = timeout)
+				self._om.simulate(verbose = verbose, timeout = timeout)
 			else:
-				self._om.simulate(simflags = simflag, verbose = False, timeout = timeout)
+				self._om.simulate(simflags = simflag, verbose = verbose, timeout = timeout)
+			self._logger.info(f'Simulation completed, collecting results...')
 			# step5: collect results
 			res_df = self._get_simulation_results(result_filter = result_filter, 
 									res_step_time = res_step_time, step_time = step_time,
 									res_path = res_path)
-			self._logger.info(f'Simulation completed!')
+			self._logger.info(f'Simulation results collected!')
 		except Exception as e:
 			self._logger.error(f'Simulation failed! Exception: {e}')
 			res_df = None

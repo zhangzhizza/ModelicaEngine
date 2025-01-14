@@ -1222,6 +1222,7 @@ class ModelicaSystem(object):
         else:
             r=" -r=" + resultfile
             self.resultfile = resultfile
+        print(f'Simulation res path is: {self.resultfile}')
 
         # allow runtime simulation flags from user input
         if(simflags is None):
@@ -1296,7 +1297,7 @@ class ModelicaSystem(object):
                         if p.poll() is None:  # If it's still running
                             print("Force-killing the process continued...")
                             subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)])
-                print('-------------------------------------------------------------', p.returncode)
+                print('Simulation process return code: ', p.returncode)
             else:
                 if not verbose:
                     p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)

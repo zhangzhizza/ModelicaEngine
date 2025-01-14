@@ -34,17 +34,22 @@ def set_mo_params(mo_file_path, set_params_dict):
 			# trying to locate the staring and ending index of number
 			# e.g. "parameter Real Hall2_FhumwNominal = 0.001 "Nominal water mass flow rate the humidifier";"
 			# the number 0.001 is the target to be changed
-			pattern_end_number = f'parameter.*{param}\\s*=\\s*([\\d.]+)'#f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
-			pattern_end_string = f'parameter.*String.*{param}.*=.*[\'\"]'
-			pattern_start = f'parameter.*{param}\\s?='
+			pattern_end_number = f'parameter.*{param}\\s?(=|\\[.*?\\]\\s?=)\\s*(.*?)(?=\\s*")' #f'parameter.*{param}\\s*=\\s*([\\d.]+)'#f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
+			pattern_end_string = f'parameter.*String.*{param}.*=.*".*?"' #f'parameter.*String.*{param}.*=.*[\'\"]'
+			pattern_start = f'parameter.*{param}\\s?(=|\\[.*?\\]\\s?=)' #f'parameter.*{param}\\s?='
 			match_end_number = re.search(pattern_end_number, content_i)
 			match_end_string = re.search(pattern_end_string, content_i)
 			match_start = re.search(pattern_start, content_i)
+			is_parameter_string = False
+			if re.search(r'\bparameter\s+(\w+)', content_i):
+				parameter_type = re.search(r'\bparameter\s+(\w+)', content_i).group(1)
+				if parameter_type == "String":
+					is_parameter_string = True
 			if match_start:
-				if match_end_number is not None:
-					match_end = match_end_number
-				elif match_end_string is not None:
+				if is_parameter_string:
 					match_end = match_end_string
+				else:
+					match_end = match_end_number					
 				new_content_i = list(content_i)
 				new_content_i[match_start.end(): match_end.end()] = str(set_params_dict[param])
 				new_content_i = ''.join(new_content_i)
