@@ -1,11 +1,13 @@
 # Author: Zhiang Zhang
 # First create: 2024-05-01
 import os
+import glob
 import shutil
 import time
 import copy
 import socket
 import threading
+import subprocess
 import traceback
 
 import pandas as pd
@@ -17,7 +19,8 @@ from colorlog import ColoredFormatter
 from OMPython import ModelicaSystem
 
 from .EngineUtils.Logger import Logger
-from .EngineUtils.FileUtils import set_mo_params
+from .EngineUtils.FileUtils import (set_mo_params,
+									read_mat_file)
 
 LOG_FMT = ColoredFormatter(
     "%(log_color)s [%(asctime)s] %(name)s %(levelname)-3s%(reset)s %(message)s",
@@ -37,7 +40,17 @@ class OMEngineAbstract(ABC):
 
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
 				set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1,
-				working_dir:str = None, inplace_set = False, additional_cmds: str = None):
+				compiling_model = "OMSequential", working_dir:str = None, 
+				inplace_set = False, om_envs: dict = {}, additional_cmds: str = None):
+		"""
+		Args:
+		----------
+		compiling_model: str
+			Choises from "OMSequential", "OMParallel", "OnetimeDuplicate".
+			For "OMSequential", different workers will be complied using OpenModelica sequentially;
+			For "OMParallel", different workers will be compiled using OpenModelica in parallel;
+			For "OnetimeDuplicate", the model will be compiled once and then the executable will be copied for different workers.
+		"""
 		self._logger = Logger().getLogger('{}-{}'.format(self.engine_type, mo_name),
                                         log_level, LOG_FMT)
 		self._mo_path = os.path.abspath(mo_path).replace('\\', '/')
@@ -57,26 +70,41 @@ class OMEngineAbstract(ABC):
 			self._logger.info(f'Model parameter set before compilation, '\
 								f'set parameter: {set_params_dict}, '\
 								f'new Modelica file is at {new_mo_path}')
+		self._working_dir = working_dir
 		self._library_paths = library_paths
 		self._log_level = log_level
 		self._cwd = os.getcwd()
 		self._mo_name = mo_name
-		self._logger.info(f'Preparing engine workers ({multiprocesses} in total)...')
+		self._logger.info(f'Preparing engine workers ({multiprocesses} in total), '\
+						  f'compiling_model: {compiling_model}...')
 		self._multiprocesses = multiprocesses
 		self._engine_workers = Queue(maxsize=multiprocesses)
 		self._sim_counter = 0
+		self._om_envs = om_envs
 		self._additional_cmds = additional_cmds
-		threads = []
-		for i in range(multiprocesses):
-			thread_i = threading.Thread(target=self._add_worker_to_list, 
-											args=(i, ))
-			threads.append(thread_i)
-			thread_i.start()
-			time.sleep(0.2)
-		
-		for thread in threads:
-			thread.join()
-		time.sleep(0.5)
+		if compiling_model.lower() == 'omparallel':
+			threads = []
+			for i in range(multiprocesses):
+				thread_i = threading.Thread(target=self._add_worker_to_list, 
+												args=(i, ))
+				threads.append(thread_i)
+				thread_i.start()
+				time.sleep(0.2)
+			
+			for thread in threads:
+				thread.join()
+			time.sleep(0.5)
+		elif compiling_model.lower() == 'omsequential':
+			for i in range(multiprocesses):
+				self._logger.info(f'Creating engine worker {i}...')
+				self._add_worker_to_list(i)
+		elif compiling_model.lower() == 'onetimeduplicate':
+			om_exe_dir = self._compile_om(self._library_paths, self._mo_path,
+										  self._mo_name, self._additional_cmds)
+			for i in range(multiprocesses):
+				self._logger.info(f'Creating engine worker {i} by using the pre-compiled executable...')
+				self._add_worker_to_list(i, om_exe_dir = om_exe_dir)
+
 
 	def set_params_get_new_mo_file(self, set_params_dict:dict, new_mo_path:str):
 		shutil.copyfile(self._mo_path, new_mo_path)
@@ -113,7 +141,7 @@ class OMEngineAbstract(ABC):
 		self._engine_workers.put(available_worker)
 		return param_vals
 
-	def _add_worker_to_list(self, worker_id):
+	def _add_worker_to_list(self, worker_id, om_exe_dir = None):
 		library_paths = []
 		for path in self._library_paths:
 			path = path.replace('\\', '/')
@@ -123,7 +151,10 @@ class OMEngineAbstract(ABC):
 									library_paths = library_paths,
 									log_level=self._log_level, 
 									worker_id = worker_id,
-									additional_cmds = self._additional_cmds)
+									root_working_dir = self._working_dir,
+									om_envs = self._om_envs,
+									additional_cmds = self._additional_cmds,
+									om_exe_dir = om_exe_dir)
 		self._engine_workers.put(this_worker)
 
 	def _find_available_worker(self, request_id):
@@ -131,6 +162,26 @@ class OMEngineAbstract(ABC):
 		available_worker = self._engine_workers.get()
 		self._logger.info(f'Worker {available_worker.worker_name} is available for the request {request_id}.')
 		return available_worker
+
+
+	def _compile_om(self, library_paths, mo_path, mo_name, additional_cmds):
+		library_paths_in_use = []
+		library_paths = [] if library_paths is None else library_paths
+		for path in library_paths:
+			path = path.replace('\\', '/')
+			library_paths_in_use.append(path)
+		library_paths_in_use.append(mo_path)
+		try:
+			self._logger.info(f'Compiling the model\'s executable, mo_name: {mo_name}, '\
+							  f'lmodel: {library_paths_in_use}, additional_cmds: {additional_cmds}')
+			om = ModelicaSystem(fileName = None, # Here must be None when given library paths, a bug of OMPython 
+										modelName = mo_name, 
+										lmodel = library_paths_in_use,
+										commandLineOptions = additional_cmds)
+			om_dir = om.getWorkDirectory()
+		except Exception as e:
+			self._logger.error(f'Exception occurred: {e}, {traceback.print_exc()}')
+		return om_dir
 
 	@property
 	def mo_name(self):
@@ -149,41 +200,97 @@ class OMEngineAbstract(ABC):
 
 class EngineWorker(object):
 
-	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
+	def __init__(self, mo_name:str, mo_path:str, 
+						library_paths:list, root_working_dir: str,
 						log_level:str = 'INFO', worker_id:int = 0,
-						additional_cmds: str = None):
+						om_envs: dict = {},
+						additional_cmds: str = None,
+						om_exe_dir: str = None):
+		"""
+		Args:
+		----------
+		om_exe_dir: str
+			A precompiled OpenModelica executable directory. If given, this pre-compiled exe
+			will be used for simulation; else (None), OpenModelica will be called to compile
+			an executable using the given Modelica model file. 
+		"""
+		self._envs = om_envs
 		self._mo_path = mo_path
 		self._mo_full_path = os.path.abspath(mo_path)
 		self._mo_name = mo_name
 		self._worker_name = '{}Worker-{}'.format(self._mo_name, worker_id)
+		self._worker_working_dir = f'{root_working_dir}{os.sep}{self._worker_name}'
+		os.makedirs(self._worker_working_dir, exist_ok=True)
 		self._logger = Logger().getLogger(self._worker_name, log_level, LOG_FMT)
 		self._mo_full_path = self._mo_full_path.replace('\\', '/')
-		library_paths = [] if library_paths is None else library_paths
-		library_paths.append(mo_path)
-		try:
-			self._om = ModelicaSystem(fileName = None, # Here must be None when given library paths, a bug of OMPython 
-										modelName = self._mo_name, 
-										lmodel = library_paths,
-										commandLineOptions = additional_cmds)
+		self._mo_res_path = None
+		if om_exe_dir is None:
+			library_paths = [] if library_paths is None else library_paths
+			library_paths.append(mo_path)
+			try:
+				self._use_given_exe = False
+				self._logger.info('Compiling the model\'s executable...')
+				self._om = ModelicaSystem(fileName = None, # Here must be None when given library paths, a bug of OMPython 
+											modelName = self._mo_name, 
+											lmodel = library_paths,
+											commandLineOptions = additional_cmds)
+				self._is_busy = False
+				om_dir = self._om.getWorkDirectory()
+				if os.path.exists(self._worker_working_dir):
+					shutil.rmtree(self._worker_working_dir)
+				shutil.copytree(om_dir, self._worker_working_dir, dirs_exist_ok=True)
+				self._om_working_dir = self._worker_working_dir
+				self._logger.info(f'Worker started successfully! Worker\'s working directory is {self._worker_working_dir}')
+			except Exception as e:
+				self._logger.error(f'Exception occurred: {e}, {traceback.print_exc()}')
+		else:
+			self._use_given_exe = True
+			self._logger.info(f'Copying the given model executable to {self._worker_working_dir}...')
+			if os.path.exists(self._worker_working_dir):
+				shutil.rmtree(self._worker_working_dir)
+			shutil.copytree(om_exe_dir, self._worker_working_dir, dirs_exist_ok=True)
 			self._is_busy = False
+			self._om_working_dir = self._worker_working_dir
 			self._logger.info('Worker started successfully!')
-		except Exception as e:
-			self._logger.error(f'Exception occurred: {e}, {traceback.print_exc()}')
+		# Rename the executable file
+		org_cmd_exe_name = f'{self._mo_name}.exe'
+		new_cmd_exe_name = f'{self._worker_name}.exe'
+		ord_cmd_exe_path = f'{self._om_working_dir}/{org_cmd_exe_name}'
+		new_cmd_exe_path = f'{self._om_working_dir}/{new_cmd_exe_name}'
+		os.rename(ord_cmd_exe_path, new_cmd_exe_path)
+
+		override_path = f'{self._om_working_dir}/{self._mo_name}_override.txt'
+		override_path = override_path.replace("\\", "/")
+		self._override_path = override_path
+		cmd_exe_path = f'{self._om_working_dir}/{self._worker_name}.exe'
+		cmd_exe_path = cmd_exe_path.replace("\\", "/")
+		self._cmd_exe_path = cmd_exe_path
+		self._mo_res_path = f'{self._om_working_dir}/{self._mo_name}_res.mat'
 
 	def set_params_recompile(self, set_params_dict:dict):
-		set_params_list = []
-		for param in set_params_dict:
-			set_params_list.append(f'{param}={set_params_dict[param]}')
-		self._logger.info(f'setParameters input list is {set_params_list}')
-		self._om.setParameters(set_params_list)
-		self._om.buildModel()
-		self._logger.info(f'Recompilation completed!')
+		if not self._use_given_exe:
+			set_params_list = []
+			for param in set_params_dict:
+				set_params_list.append(f'{param}={set_params_dict[param]}')
+			self._logger.info(f'setParameters input list is {set_params_list}')
+			self._om.setParameters(set_params_list)
+			self._om.buildModel()
+			om_dir = self._om.getWorkDirectory()
+			shutil.copytree(om_dir, self._worker_working_dir, dirs_exist_ok=True)
+			self._om_working_dir = self._worker_working_dir
+			self._logger.info(f'Recompilation completed!')
+		else:
+			raise RuntimeError('set_params_recompile is currently not available when using the given executable!')
+
 
 	def get_params(self, param_names:list) -> dict:
-		param_vals = self._om.getParameters(param_names)
-		return param_vals
-
-	def _set_simulation_options(self, set_params_dict:dict, start_time:int, 
+		if not self._use_given_exe:
+			param_vals = self._om.getParameters(param_names)
+			return param_vals
+		else:
+			raise RuntimeError('get_params is currently not available when using the given executable!')
+		
+	def _set_simulation_options_legacy(self, set_params_dict:dict, start_time:int, 
 								final_time:int, step_time:int, method:str='dassl', 
 								rtol:float=1e-6, ):
 		# step1: set the simulation parameters
@@ -206,24 +313,51 @@ class EngineWorker(object):
                          			f'solver={method}'])
 		self._logger.info(f'Simulation options:{self._om.getSimulationOptions()}')
 
+	def _set_simulation_options(self, set_params_dict:dict, start_time:int, 
+								final_time:int, step_time:int, method:str='dassl', 
+								rtol:float=1e-6):
+		override_dict = set_params_dict.copy()
+		override_dict['startTime'] = start_time
+		override_dict['stopTime'] = final_time
+		override_dict['stepSize'] = step_time
+		override_dict['tolerance'] = rtol
+		override_dict['solver'] = method
+		file = open(self._override_path, "w")
+		for (key, value) in override_dict.items():
+			name = key + "=" + str(value) + "\n"
+			file.write(name)
+		file.close()
 
-	def _get_simulation_results(self, result_filter:list, res_step_time:int, step_time:int,
-									res_path:str):
+	def _get_simulation_results(self, start_sim_time: float, end_time_time: float,
+								result_filter:list, res_step_time:int, step_time:int,
+								res_path:str, read_res_method: str = 'mat'):
 
 		result_filter = copy.deepcopy(result_filter)
-		if 'time' not in result_filter:
-			result_filter.append('time')
 		# try multiple times because sometime the results are not ready so soon
 		read_res_done = False
 		read_res_trials = 0
 		res_df = None
+		read_res_exception = None
 		while read_res_done is False and read_res_trials <= 5:
 			try:
-				res = self._om.getSolutions(result_filter)
+				if read_res_method == 'mat':
+					res = read_mat_file(mat_file_path = self._mo_res_path, 
+										output_names = result_filter, 
+										start_sim_time = start_sim_time,
+										end_sim_time = end_time_time,
+										sim_time_step = step_time)
+				elif read_res_method == 'ompython':
+					if self._use_given_exe:
+						raise RuntimeError('read_res_method cannot be ompython when using the given executable!')
+					if 'time' not in result_filter:
+						result_filter.insert(0, 'time')
+					res = self._om.getSolutions(result_filter)
 				res = np.array(res).T
 				res_df = pd.DataFrame(res)
+
 				read_res_done = True
-			except:
+			except Exception as e:
+				read_res_exception = e
 				read_res_trials += 1
 				self._logger.warning('Cannot find the simulation result file '\
 								f'after trying for {read_res_trials} times, will retry...')
@@ -233,8 +367,11 @@ class EngineWorker(object):
 			self._logger.error('Cannot find the simulation result file '\
 								f'after trying for {read_res_trials - 1} times!')
 			raise RuntimeError('Cannot find the simulation result file '\
-								f'after trying for {read_res_trials - 1} times!')
+								f'after trying for {read_res_trials - 1} times!'\
+								f'{read_res_exception}')
 		else:
+			if 'time' not in result_filter:
+				result_filter.insert(0, 'time')
 			res_df.columns = result_filter
 			res_df = res_df.set_index(res_df['time'])
 			res_df = res_df[~res_df.index.duplicated(keep='first')]
@@ -248,6 +385,47 @@ class EngineWorker(object):
 				res_df.to_csv(res_path)
 			return res_df
 			
+	def simulate_helper(self, verbose, timeout, simflags=''):
+
+		if 'OPENMODELICAHOME' in self._envs:
+			omhome = self._envs['OPENMODELICAHOME']
+		else:
+			omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
+
+		dll_paths = os.path.join(omhome, "bin").replace("\\", "/") \
+						+ os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") \
+						+ os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") \
+						+ os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+		sim_env = os.environ.copy()
+		sim_env["PATH"] = dll_paths + os.pathsep + sim_env["PATH"]
+		# Create command
+		cmd_exe_path = fr'"{self._cmd_exe_path}"'
+		override_path = fr'"{self._override_path}"'
+		cmd = f'{cmd_exe_path} -overrideFile={override_path} -lv=LOG_STDOUT {simflags}'
+		self._logger.info(f'Simulation executable cmd: {cmd}')
+		if not verbose:
+			p = subprocess.Popen(cmd, env=sim_env, 
+								cwd=self._om_working_dir,
+								stdout=subprocess.DEVNULL,
+								stderr=subprocess.STDOUT)
+		else:
+			p = subprocess.Popen(cmd, env=sim_env,
+								cwd=self._om_working_dir)
+		try:
+			p.wait(timeout=timeout)
+			p.terminate()
+		except:
+			print('Process timed out!')
+			p.terminate()
+			time.sleep(2)
+			if p.poll() is None:  # Process still hasn't terminated
+				self._logger.warning("Force-killing the process...")
+				p.kill()
+				time.sleep(2)  # Give it a moment to be killed
+				if p.poll() is None:  # If it's still running
+					self._logger.warning("Force-killing the process continued...")
+					subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)])
+		self._logger.info(f'Simulation process return code: {p.returncode}')
 
 	def simulate(self, set_params_dict:dict, start_time:int, 
 				final_time:int, step_time:int, result_filter:list, 
@@ -262,14 +440,18 @@ class EngineWorker(object):
 		# step4: run simulation
 		try:
 			if len(simflag) == 0:
-				self._om.simulate(verbose = verbose, timeout = timeout)
+				self.simulate_helper(verbose = verbose, timeout = timeout) #self._om.simulate(verbose = verbose, timeout = timeout)
 			else:
-				self._om.simulate(simflags = simflag, verbose = verbose, timeout = timeout)
-			self._logger.info(f'Simulation completed, collecting results...')
+				self.simulate_helper(verbose = verbose, timeout = timeout, simflags = simflag) #self._om.simulate(simflags = simflag, verbose = verbose, timeout = timeout)
+			
+			self._logger.info(f'Simulation completed, collecting results from {self._mo_res_path}...')
 			# step5: collect results
-			res_df = self._get_simulation_results(result_filter = result_filter, 
-									res_step_time = res_step_time, step_time = step_time,
-									res_path = res_path)
+			res_df = self._get_simulation_results(start_sim_time = start_time,
+												end_time_time = final_time,
+												result_filter = result_filter, 
+												res_step_time = res_step_time, 
+												step_time = step_time,
+												res_path = res_path)
 			self._logger.info(f'Simulation results collected!')
 		except Exception as e:
 			self._logger.error(f'Simulation failed! Exception: {e}')

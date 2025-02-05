@@ -1231,9 +1231,12 @@ class ModelicaSystem(object):
             simflags=" " + simflags
 
         overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\", "/")
+        print('overrideFile:', overrideFile)
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
+            print('tmpdict:', tmpdict)
             tmpdict.update(self.simoptionsoverride)
+            print('tmpdict:', tmpdict)
             # write to override file
             file = open(overrideFile, "w")
             for (key, value) in tmpdict.items():
@@ -1277,6 +1280,8 @@ class ModelicaSystem(object):
                 dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
+                print('cmd:', cmd)
+                print('my_env', my_env)
                 if not verbose:
                     p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
                 else:
