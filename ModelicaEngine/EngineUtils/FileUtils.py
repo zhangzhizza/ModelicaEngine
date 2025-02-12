@@ -10,16 +10,13 @@ import numpy as np
 def read_mat_file(mat_file_path, output_names, 
 					start_sim_time, end_sim_time, 
 					sim_time_step):
-	time_array = np.arange(start_sim_time, end_sim_time + sim_time_step, sim_time_step)
-	res = [time_array]
 	try:
 		data = DyMat.DyMatFile(mat_file_path)
+		time_array = data.mat['data_2'][0] # 'time' is at the 0 index position
+		res = [time_array]
 		for output_name in output_names:
 			output_i = data.data(output_name)
-			if (len(output_i) != len(time_array)) and (len(output_i)-1 != len(time_array)):
-				raise ValueError(f'Output length of {output_name} is not as required ({len(time_array)})')
-			else:
-				res.append(output_i[0: len(time_array)])
+			res.append(output_i)
 		res = np.array(res)
 		return res
 	except Exception as e:
