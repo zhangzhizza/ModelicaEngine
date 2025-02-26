@@ -50,9 +50,13 @@ class InteractiveEngine(OMEngineAbstract):
 				set_params_dict:dict={}, port:int=4802, start_time:int=0, 
 				final_time:int=3600, step_time:int=1, u_names:list=[],
 				result_filter:list=[], method:str='dassl', rtol:float=1e-6, 
-				res_path:str=None, res_step_time:int=60, log_level = 'INFO'):
+				res_path:str=None, res_step_time:int=60, log_level = 'INFO',
+				working_dir:str=None):
 		super().__init__(mo_name = mo_name, mo_path = mo_path, library_paths = library_paths, 
-						set_params_dict = set_params_dict, log_level = log_level, multiprocesses = 1)
+						set_params_dict = set_params_dict, log_level = log_level, multiprocesses = 1,
+						compiling_model = "OnetimeDuplicate", working_dir = working_dir, 
+						inplace_set = False, om_envs = {}, additional_cmds = None)
+
 		self._port = port
 		self._start_time = start_time
 		self._final_time = final_time
@@ -86,7 +90,7 @@ class InteractiveEngine(OMEngineAbstract):
 		url = f'opc.tcp://localhost:{self._port}'
 		self._logger.info(f'OpenModelica OPC-UA address: {url}')
 		client = Client(url=url)
-		await client.connect()
+		await asyncio.wait_for(client.connect(), timeout = 50)
 		self._logger.info(f'An OPC-UA client is established {client}')
 		children = await client.nodes.root.get_children()
 		objects_root = children[0]

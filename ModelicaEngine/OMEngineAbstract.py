@@ -54,11 +54,13 @@ class OMEngineAbstract(ABC):
 		self._logger = Logger().getLogger('{}-{}'.format(self.engine_type, mo_name),
                                         log_level, LOG_FMT)
 		self._mo_path = os.path.abspath(mo_path).replace('\\', '/')
+		if working_dir is None:
+			working_dir = os.path.dirname(self._mo_path)
+		working_dir = os.path.abspath(working_dir) if not os.path.isabs(working_dir) else working_dir
+		working_dir = working_dir.replace('\\', '/')
 		# set model parameters before compilation
 		if len(set_params_dict) > 0:
 			mo_file_name = os.path.splitext(os.path.basename(self._mo_path))[0]
-			if working_dir is None:
-				working_dir = os.path.dirname(self._mo_path)
 			if not inplace_set:
 				new_mo_path = working_dir + '/' \
 						+ f'{mo_file_name}_set{time.time()}.mo'
@@ -71,6 +73,7 @@ class OMEngineAbstract(ABC):
 								f'set parameter: {set_params_dict}, '\
 								f'new Modelica file is at {new_mo_path}')
 		self._working_dir = working_dir
+		self._logger.info(f'Working directory is {self._working_dir}')
 		self._library_paths = library_paths
 		self._log_level = log_level
 		self._cwd = os.getcwd()
@@ -219,7 +222,7 @@ class EngineWorker(object):
 		self._mo_full_path = os.path.abspath(mo_path)
 		self._mo_name = mo_name
 		self._worker_name = '{}Worker-{}'.format(self._mo_name, worker_id)
-		self._worker_working_dir = f'{root_working_dir}{os.sep}{self._worker_name}'
+		self._worker_working_dir = f'{root_working_dir}/{self._worker_name}'
 		os.makedirs(self._worker_working_dir, exist_ok=True)
 		self._logger = Logger().getLogger(self._worker_name, log_level, LOG_FMT)
 		self._mo_full_path = self._mo_full_path.replace('\\', '/')
@@ -462,7 +465,7 @@ class EngineWorker(object):
 	def simulate_interactive(self, port:int, set_params_dict:dict, start_time:int, 
 							final_time:int, step_time:int, result_filter:list, 
 							method:str='dassl', rtol:float=1e-6, res_path:str=None,
-							res_step_time:int = None, simflag:str = ''):
+							res_step_time:int = None, simflag:str = '', verbose:bool=True):
 		# step1: set simulation parameters and options
 		self._set_simulation_options(set_params_dict = set_params_dict, start_time = start_time, 
 								final_time = final_time, step_time = step_time, method = method, 
@@ -471,11 +474,18 @@ class EngineWorker(object):
 		if not is_port_available:
 			self._logger.error(f'Port {port} is not available for interactive simulation')
 			raise ValueError(f'Port {port} is not available for interactive simulation')
-		self._om.simulate(simflags = f'-embeddedServer=opc-ua -embeddedServerPort={port} {simflag}')
+		self.simulate_helper(verbose = verbose,
+							 timeout = None, 
+							 simflags= f'-embeddedServer=opc-ua -embeddedServerPort={port} {simflag}')
+		#self._om.simulate(simflags = f'-embeddedServer=opc-ua -embeddedServerPort={port} {simflag}')
 		# step5: collect results
-		res_df = self._get_simulation_results(result_filter = result_filter, 
-									res_step_time = res_step_time, step_time = step_time,
-									res_path = res_path)
+		res_df = self._get_simulation_results(start_sim_time = start_time,
+												end_time_time = final_time,
+												result_filter = result_filter, 
+												res_step_time = res_step_time, 
+												step_time = step_time,
+												res_path = res_path)
+
 		self._is_busy = False
 		self._logger.info(f'Interactive simulation completed!')
 		return res_df
