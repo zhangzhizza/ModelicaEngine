@@ -41,7 +41,8 @@ class OMEngineAbstract(ABC):
 	def __init__(self, mo_name:str, mo_path:str, library_paths:list, 
 				set_params_dict:dict={}, log_level = 'INFO', multiprocesses = 1,
 				compiling_model = "OMSequential", working_dir:str = None, 
-				inplace_set = False, om_envs: dict = {}, additional_cmds: str = None):
+				inplace_set = False, om_envs: dict = {}, additional_cmds: str = None,
+				compiled_exe_dir: str = None):
 		"""
 		Args:
 		----------
@@ -85,28 +86,33 @@ class OMEngineAbstract(ABC):
 		self._sim_counter = 0
 		self._om_envs = om_envs
 		self._additional_cmds = additional_cmds
-		if compiling_model.lower() == 'omparallel':
-			threads = []
+		if compiled_exe_dir is None:
+			if compiling_model.lower() == 'omparallel':
+				threads = []
+				for i in range(multiprocesses):
+					thread_i = threading.Thread(target=self._add_worker_to_list, 
+													args=(i, ))
+					threads.append(thread_i)
+					thread_i.start()
+					time.sleep(0.2)
+				
+				for thread in threads:
+					thread.join()
+				time.sleep(0.5)
+			elif compiling_model.lower() == 'omsequential':
+				for i in range(multiprocesses):
+					self._logger.info(f'Creating engine worker {i}...')
+					self._add_worker_to_list(i)
+			elif compiling_model.lower() == 'onetimeduplicate':
+				om_exe_dir = self._compile_om(self._library_paths, self._mo_path,
+											  self._mo_name, self._additional_cmds)
+				for i in range(multiprocesses):
+					self._logger.info(f'Creating engine worker {i} by using the compiled executable...')
+					self._add_worker_to_list(i, om_exe_dir = om_exe_dir)
+		else:
 			for i in range(multiprocesses):
-				thread_i = threading.Thread(target=self._add_worker_to_list, 
-												args=(i, ))
-				threads.append(thread_i)
-				thread_i.start()
-				time.sleep(0.2)
-			
-			for thread in threads:
-				thread.join()
-			time.sleep(0.5)
-		elif compiling_model.lower() == 'omsequential':
-			for i in range(multiprocesses):
-				self._logger.info(f'Creating engine worker {i}...')
-				self._add_worker_to_list(i)
-		elif compiling_model.lower() == 'onetimeduplicate':
-			om_exe_dir = self._compile_om(self._library_paths, self._mo_path,
-										  self._mo_name, self._additional_cmds)
-			for i in range(multiprocesses):
-				self._logger.info(f'Creating engine worker {i} by using the pre-compiled executable...')
-				self._add_worker_to_list(i, om_exe_dir = om_exe_dir)
+				self._logger.info(f'Creating engine worker {i} by using the pre-compiled executable at {compiled_exe_dir}...')
+				self._add_worker_to_list(i, om_exe_dir = compiled_exe_dir)
 
 
 	def set_params_get_new_mo_file(self, set_params_dict:dict, new_mo_path:str):
@@ -357,7 +363,7 @@ class EngineWorker(object):
 					res = self._om.getSolutions(result_filter)
 				res = np.array(res).T
 				res_df = pd.DataFrame(res)
-
+				res_df = res_df.applymap(float)
 				read_res_done = True
 			except Exception as e:
 				read_res_exception = e
