@@ -255,18 +255,20 @@ class EngineWorker(object):
 		else:
 			self._use_given_exe = True
 			self._logger.info(f'Copying the given model executable to {self._worker_working_dir}...')
-			if os.path.exists(self._worker_working_dir):
+			if os.path.exists(self._worker_working_dir) and os.listdir(self._worker_working_dir):
+				self._logger.warning(f'Will delete {self._worker_working_dir} because it is not empty!')
 				shutil.rmtree(self._worker_working_dir)
 			shutil.copytree(om_exe_dir, self._worker_working_dir, dirs_exist_ok=True)
 			self._is_busy = False
 			self._om_working_dir = self._worker_working_dir
 			self._logger.info('Worker started successfully!')
 		# Rename the executable file
-		org_cmd_exe_name = f'{self._mo_name}.exe'
+		org_cmd_exe_name = os.path.basename(glob.glob(f"{self._om_working_dir}/*.exe")[0])
 		new_cmd_exe_name = f'{self._worker_name}.exe'
 		ord_cmd_exe_path = f'{self._om_working_dir}/{org_cmd_exe_name}'
 		new_cmd_exe_path = f'{self._om_working_dir}/{new_cmd_exe_name}'
-		os.rename(ord_cmd_exe_path, new_cmd_exe_path)
+		if not os.path.exists(new_cmd_exe_path):
+			os.rename(ord_cmd_exe_path, new_cmd_exe_path)
 
 		override_path = f'{self._om_working_dir}/{self._mo_name}_override.txt'
 		override_path = override_path.replace("\\", "/")
