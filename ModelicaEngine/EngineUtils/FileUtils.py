@@ -7,6 +7,9 @@ import traceback
 
 import numpy as np
 
+from modelica_builder.model import Model
+
+
 def read_mat_file(mat_file_path, output_names, 
 					start_sim_time, end_sim_time, 
 					sim_time_step):
@@ -41,43 +44,46 @@ def find_files_in_dir(dir_name, file_ext = '.mo'):
 
 
 def set_mo_params(mo_file_path, set_params_dict):
-	with open(mo_file_path, "r") as mo_file_r:
-		mo_content = mo_file_r.read()
+	model_obj = Model(mo_file_path)
 	set_params_done = {}
 	set_params_index_content = {} # remember the target lines and updated contents
-	mo_content_ls = mo_content.split('\n')
 	##########################################################
 	#### read through all lines ##############################
-	for i in range(len(mo_content_ls)):
-		content_i = mo_content_ls[i]
-		for param in set_params_dict:
-			# trying to locate the staring and ending index of number
-			# e.g. "parameter Real Hall2_FhumwNominal = 0.001 "Nominal water mass flow rate the humidifier";"
-			# the number 0.001 is the target to be changed
-			pattern_end_number = f'parameter.*{param}\\s?(=|\\[.*?\\]\\s?=)\\s*(.*?)(?=\\s*")' #f'parameter.*{param}\\s*=\\s*([\\d.]+)'#f'parameter.*{param}.*=.*([+-]?(?=\\.\\d|\\d)(?:\\d+)?(?:\\.?\\d*))(?:[Ee]([+-]?\\d+))?'
-			pattern_end_string = f'parameter.*String.*{param}.*=.*".*?"' #f'parameter.*String.*{param}.*=.*[\'\"]'
-			pattern_start = f'parameter.*{param}\\s?(=|\\[.*?\\]\\s?=)' #f'parameter.*{param}\\s?='
-			match_end_number = re.search(pattern_end_number, content_i)
-			match_end_string = re.search(pattern_end_string, content_i)
-			match_start = re.search(pattern_start, content_i)
-			is_parameter_string = False
-			if re.search(r'\bparameter\s+(\w+)', content_i):
-				parameter_type = re.search(r'\bparameter\s+(\w+)', content_i).group(1)
-				if parameter_type == "String":
-					is_parameter_string = True
-			if match_start:
-				if is_parameter_string:
-					match_end = match_end_string
-				else:
-					match_end = match_end_number					
-				new_content_i = list(content_i)
-				new_content_i[match_start.end(): match_end.end()] = str(set_params_dict[param])
-				new_content_i = ''.join(new_content_i)
-				set_params_index_content[i] = new_content_i
-				set_params_done[param] = True
-	# change the found lines
-	for set_line_i in set_params_index_content:
-		mo_content_ls[set_line_i] = set_params_index_content[set_line_i]
+	for param in set_params_dict:
+		param_possible_types = ['Real', 'String', 'Boolean']
+		for param_possible_type in param_possible_types:
+			get_val = model_obj.get_parameter_value(param_possible_type, param)
+			if get_val is not None:
+				if param_possible_type == 'Real':
+					new_value = str(set_params_dict[param])
+				elif param_possible_type == 'Boolean':
+					raw_value = set_params_dict[param]
+					if type(raw_value) is bool:
+						if raw_value is True:
+							new_value = 'true'
+						else:
+							new_value = 'false'
+					else:
+						if raw_value.lower() == 'true':
+							new_value = 'true'
+						elif raw_value.lower() == 'false':
+							new_value = 'false'
+						else:
+							raise ValueError(f'Parameter {param} type is Boolean, '\
+											 f'but its value is invalid, should be '\
+											 f'either a Boolean value or String value '\
+											 f'"true" or "false"')
+				elif param_possible_type == 'String':
+					raw_value = set_params_dict[param].strip('"')
+					new_value = f'\"{raw_value}\"'
+				break
+		if get_val is None:
+			set_params_done[param] = False
+		else:
+			model_obj.update_parameter(type_=param_possible_type,
+										identifier=param,
+										new_value=new_value)
+			set_params_done[param] = True
 	not_done_ls = []
 	for param in set_params_dict:
 		if param not in set_params_done:
@@ -85,6 +91,4 @@ def set_mo_params(mo_file_path, set_params_dict):
 	if len(not_done_ls)>0:
 		not_done_ls_str = ','.join(not_done_ls)
 		raise ValueError(f'Parameters {not_done_ls_str} cannot be found!')
-	mo_content = '\n'.join(mo_content_ls)
-	with open(mo_file_path, "w") as mo_file_w:
-		mo_file_w.write(mo_content)
+	model_obj.save_as(mo_file_path)
