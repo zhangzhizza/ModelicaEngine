@@ -3,14 +3,16 @@
 
 import omniORB, _omnipy
 from omniORB import CORBA, PortableServer
+
 _0_CORBA = CORBA
 
 
-_omnipy.checkVersion(4,2, __file__, 1)
+_omnipy.checkVersion(4, 2, __file__, 1)
 
 try:
     property
 except NameError:
+
     def property(*args):
         return None
 
@@ -19,15 +21,25 @@ except NameError:
 # Start of module "_OMCIDL"
 #
 __name__ = "OMPythonIDL._OMCIDL"
-_0__OMCIDL = omniORB.openModule("OMPythonIDL._OMCIDL", r"OMCompiler/Compiler/runtime/omc_communication.idl")
-_0__OMCIDL__POA = omniORB.openModule("OMPythonIDL._OMCIDL__POA", r"OMCompiler/Compiler/runtime/omc_communication.idl")
+_0__OMCIDL = omniORB.openModule(
+    "OMPythonIDL._OMCIDL", r"OMCompiler/Compiler/runtime/omc_communication.idl"
+)
+_0__OMCIDL__POA = omniORB.openModule(
+    "OMPythonIDL._OMCIDL__POA", r"OMCompiler/Compiler/runtime/omc_communication.idl"
+)
 
 
 # interface OmcCommunication
-_0__OMCIDL._d_OmcCommunication = (omniORB.tcInternal.tv_objref, "IDL:OmcCommunication:1.0", "OmcCommunication")
+_0__OMCIDL._d_OmcCommunication = (
+    omniORB.tcInternal.tv_objref,
+    "IDL:OmcCommunication:1.0",
+    "OmcCommunication",
+)
 omniORB.typeMapping["IDL:OmcCommunication:1.0"] = _0__OMCIDL._d_OmcCommunication
 _0__OMCIDL.OmcCommunication = omniORB.newEmptyClass()
-class OmcCommunication :
+
+
+class OmcCommunication:
     _NP_RepositoryId = _0__OMCIDL._d_OmcCommunication[1]
 
     def __init__(self, *args, **kw):
@@ -37,25 +49,45 @@ class OmcCommunication :
 
 
 _0__OMCIDL.OmcCommunication = OmcCommunication
-_0__OMCIDL._tc_OmcCommunication = omniORB.tcInternal.createTypeCode(_0__OMCIDL._d_OmcCommunication)
-omniORB.registerType(OmcCommunication._NP_RepositoryId, _0__OMCIDL._d_OmcCommunication, _0__OMCIDL._tc_OmcCommunication)
+_0__OMCIDL._tc_OmcCommunication = omniORB.tcInternal.createTypeCode(
+    _0__OMCIDL._d_OmcCommunication
+)
+omniORB.registerType(
+    OmcCommunication._NP_RepositoryId,
+    _0__OMCIDL._d_OmcCommunication,
+    _0__OMCIDL._tc_OmcCommunication,
+)
 
 # OmcCommunication operations and attributes
-OmcCommunication._d_sendExpression = (((omniORB.tcInternal.tv_string,0), ), ((omniORB.tcInternal.tv_string,0), ), None)
-OmcCommunication._d_sendClass = (((omniORB.tcInternal.tv_string,0), ), ((omniORB.tcInternal.tv_string,0), ), None)
+OmcCommunication._d_sendExpression = (
+    ((omniORB.tcInternal.tv_string, 0),),
+    ((omniORB.tcInternal.tv_string, 0),),
+    None,
+)
+OmcCommunication._d_sendClass = (
+    ((omniORB.tcInternal.tv_string, 0),),
+    ((omniORB.tcInternal.tv_string, 0),),
+    None,
+)
+
 
 # OmcCommunication object reference
-class _objref_OmcCommunication (CORBA.Object):
+class _objref_OmcCommunication(CORBA.Object):
     _NP_RepositoryId = OmcCommunication._NP_RepositoryId
 
     def __init__(self, obj):
         CORBA.Object.__init__(self, obj)
 
     def sendExpression(self, *args):
-        return self._obj.invoke("sendExpression", _0__OMCIDL.OmcCommunication._d_sendExpression, args)
+        return self._obj.invoke(
+            "sendExpression", _0__OMCIDL.OmcCommunication._d_sendExpression, args
+        )
 
     def sendClass(self, *args):
-        return self._obj.invoke("sendClass", _0__OMCIDL.OmcCommunication._d_sendClass, args)
+        return self._obj.invoke(
+            "sendClass", _0__OMCIDL.OmcCommunication._d_sendClass, args
+        )
+
 
 omniORB.registerObjref(OmcCommunication._NP_RepositoryId, _objref_OmcCommunication)
 _0__OMCIDL._objref_OmcCommunication = _objref_OmcCommunication
@@ -63,11 +95,16 @@ del OmcCommunication, _objref_OmcCommunication
 
 # OmcCommunication skeleton
 __name__ = "OMPythonIDL._OMCIDL__POA"
-class OmcCommunication (PortableServer.Servant):
+
+
+class OmcCommunication(PortableServer.Servant):
     _NP_RepositoryId = _0__OMCIDL.OmcCommunication._NP_RepositoryId
 
+    _omni_op_d = {
+        "sendExpression": _0__OMCIDL.OmcCommunication._d_sendExpression,
+        "sendClass": _0__OMCIDL.OmcCommunication._d_sendClass,
+    }
 
-    _omni_op_d = {"sendExpression": _0__OMCIDL.OmcCommunication._d_sendExpression, "sendClass": _0__OMCIDL.OmcCommunication._d_sendClass}
 
 OmcCommunication._omni_skeleton = OmcCommunication
 _0__OMCIDL__POA.OmcCommunication = OmcCommunication
@@ -80,6 +117,6 @@ __name__ = "OMPythonIDL._OMCIDL"
 #
 __name__ = "OMPythonIDL.omc_communication_idl"
 
-_exported_modules = ( "OMPythonIDL._OMCIDL", )
+_exported_modules = ("OMPythonIDL._OMCIDL",)
 
 # The end.

@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2015 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -31,7 +31,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
+"""
 
 import zipfile
 import collections
@@ -42,39 +42,42 @@ import pyMtsf
 from ...Simulator.FMUSimulator.FMIDescription2 import FMIDescription
 
 
+StandardSeriesForFmi = [
+    pyMtsf.Series("Fixed", None, "constant", 1),
+    pyMtsf.Series("Continuous", "Time", "linear", 100),
+    pyMtsf.Series("Discrete", "TimeDiscrete", "constant", 10),
+]
 
-StandardSeriesForFmi = [pyMtsf.Series('Fixed', None, 'constant', 1), pyMtsf.Series('Continuous', 'Time', 'linear', 100), pyMtsf.Series('Discrete', 'TimeDiscrete', 'constant', 10)]
 
 def convertFromFmi(fmuFilename, fmi=None):
-    ''' Returns data to initialize an MTSF result file from an FMU.
-        The call to initialize an MTSF result file is
-            pyMtsf.MTSF(resultFileName, modelDescription, modelVariables, experimentSetup, simpleTypes, units, enumerationsMatrix)
-        The missing data is resultFileName and experimentSetup to be specified before initializing the MTSF object.
+    """Returns data to initialize an MTSF result file from an FMU.
+    The call to initialize an MTSF result file is
+        pyMtsf.MTSF(resultFileName, modelDescription, modelVariables, experimentSetup, simpleTypes, units, enumerationsMatrix)
+    The missing data is resultFileName and experimentSetup to be specified before initializing the MTSF object.
 
-        Inputs                       Type:
-            fmuFilename              String
-            fmi                      FMIDescription      [optional]
-            if fmi is given, then fmuFilename is ignored. Otherwise the FMI description is loaded from the given file.
+    Inputs                       Type:
+        fmuFilename              String
+        fmi                      FMIDescription      [optional]
+        if fmi is given, then fmuFilename is ignored. Otherwise the FMI description is loaded from the given file.
 
-        Outputs
-           modelDescription          pyMtsf.ModelDescription
-           modelVariables            pyMtsf.ModelVariables
-           simpleTypes               list of pyMtsf.SimpleType
-           units                     list of pyMtsf.Unit
-           enumerationsMatrix        list of pyMtsf.Enumeration
-    '''
+    Outputs
+       modelDescription          pyMtsf.ModelDescription
+       modelVariables            pyMtsf.ModelVariables
+       simpleTypes               list of pyMtsf.SimpleType
+       units                     list of pyMtsf.Unit
+       enumerationsMatrix        list of pyMtsf.Enumeration
+    """
 
     def _None2Str(x):
         if x is None:
-            return ''
+            return ""
         else:
             return x
 
-
     # Load FMIDescription if necessary
     if fmi is None:
-        fmuFile = zipfile.ZipFile(os.path.join(os.getcwd(), fmuFilename + u'.fmu'), 'r')
-        fmi = FMIDescription(fmuFile.open('modelDescription.xml'))
+        fmuFile = zipfile.ZipFile(os.path.join(os.getcwd(), fmuFilename + ".fmu"), "r")
+        fmi = FMIDescription(fmuFile.open("modelDescription.xml"))
 
     # Prepare some variables
     allSeriesNames = [x.name for x in StandardSeriesForFmi]
@@ -82,31 +85,50 @@ def convertFromFmi(fmuFilename, fmi=None):
     simpleTypes = []
     units = []
     enumerationsMatrix = []
-    variable['Time'] = pyMtsf.ScalarModelVariable('Continuous Time', 'input', 0, 'continuous', allSeriesNames.index('Continuous'), pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping['Real']), None, 0)
-    variable['TimeDiscrete'] = pyMtsf.ScalarModelVariable('Discrete Time at events', 'input', 0, 'discrete', allSeriesNames.index('Discrete'), pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping['Real']), None, 0)
-    
-    
+    variable["Time"] = pyMtsf.ScalarModelVariable(
+        "Continuous Time",
+        "input",
+        0,
+        "continuous",
+        allSeriesNames.index("Continuous"),
+        pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping["Real"]),
+        None,
+        0,
+    )
+    variable["TimeDiscrete"] = pyMtsf.ScalarModelVariable(
+        "Discrete Time at events",
+        "input",
+        0,
+        "discrete",
+        allSeriesNames.index("Discrete"),
+        pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping["Real"]),
+        None,
+        0,
+    )
+
     # Searching aliases
-    referenceList = [(x, fmi.scalarVariables[x].valueReference) for x in fmi.scalarVariables.keys()]
-    referenceList.sort(key = itemgetter(1))
-    alias = dict()    
+    referenceList = [
+        (x, fmi.scalarVariables[x].valueReference) for x in fmi.scalarVariables.keys()
+    ]
+    referenceList.sort(key=itemgetter(1))
+    alias = dict()
     if len(referenceList) > 1:
         origin = None
         alias[referenceList[0][0]] = None
-        for index in xrange(len(referenceList)-1):
+        for index in xrange(len(referenceList) - 1):
             variableName = referenceList[index][0]
             valueReference = referenceList[index][1]
-            nextVariableName = referenceList[index+1][0]
-            nextValueReference = referenceList[index+1][1]
+            nextVariableName = referenceList[index + 1][0]
+            nextValueReference = referenceList[index + 1][1]
             if valueReference == nextValueReference:
                 if origin is None:
                     origin = variableName
-                alias[nextVariableName] = origin 
+                alias[nextVariableName] = origin
             else:
                 origin = None
                 alias[nextVariableName] = None
-        
-    '''
+
+    """
     # Types and display units
     uniqueSimpleType = []
     for fmiVariableName, fmiVariable in fmi.scalarVariables.iteritems():
@@ -200,71 +222,94 @@ def convertFromFmi(fmuFilename, fmi=None):
                     enumerationsMatrix.append(pyMtsf.Enumeration(enum[0], j, enum[1], firstEntry))
                 simpleTypes[k].unitOrEnumerationRow = startRow
 
-    '''
-    
-    simpleTypes.append(pyMtsf.SimpleType('Real', pyMtsf.DataType['Real'], 'Real', False, -1, ''))
-    simpleTypes.append(pyMtsf.SimpleType('Integer', pyMtsf.DataType['Integer'], 'Integer', False, -1, ''))
-    simpleTypes.append(pyMtsf.SimpleType('Boolean', pyMtsf.DataType['Boolean'], 'Boolean', False, -1, ''))
-    
+    """
+
+    simpleTypes.append(
+        pyMtsf.SimpleType("Real", pyMtsf.DataType["Real"], "Real", False, -1, "")
+    )
+    simpleTypes.append(
+        pyMtsf.SimpleType(
+            "Integer", pyMtsf.DataType["Integer"], "Integer", False, -1, ""
+        )
+    )
+    simpleTypes.append(
+        pyMtsf.SimpleType(
+            "Boolean", pyMtsf.DataType["Boolean"], "Boolean", False, -1, ""
+        )
+    )
 
     # Iterate over all fmi-variables
     for fmiVariableName, fmiVariable in fmi.scalarVariables.iteritems():
         variableType = fmiVariable.type.basicType
         if variableType != "String":  # Do not support strings
-            aliasNegated = 0 # Not supported in FMI 2.0            
-            aliasName = alias[fmiVariableName]           
-                        
-            categoryIndex = pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping[variableType])
-            
+            aliasNegated = 0  # Not supported in FMI 2.0
+            aliasName = alias[fmiVariableName]
+
+            categoryIndex = pyMtsf.StandardCategoryNames.index(
+                pyMtsf.CategoryMapping[variableType]
+            )
+
             variability = fmiVariable.variability
-            if variability == 'tunable':
-                variability = 'fixed'
-            if variability in ['constant', 'fixed']:
-                seriesIndex = allSeriesNames.index('Fixed')                
-            elif variability in ['discrete']:
-                seriesIndex = allSeriesNames.index('Discrete')
+            if variability == "tunable":
+                variability = "fixed"
+            if variability in ["constant", "fixed"]:
+                seriesIndex = allSeriesNames.index("Fixed")
+            elif variability in ["discrete"]:
+                seriesIndex = allSeriesNames.index("Discrete")
             else:
-                seriesIndex = allSeriesNames.index('Continuous')
+                seriesIndex = allSeriesNames.index("Continuous")
 
             causality = fmiVariable.causality
-            if causality == 'calculatedParameter':
-                causality = 'parameter'
-            if causality == 'independent':
-                causality = 'option'
-                       
-            if variableType == 'Real':
+            if causality == "calculatedParameter":
+                causality = "parameter"
+            if causality == "independent":
+                causality = "option"
+
+            if variableType == "Real":
                 simpleTypeRow = 0
-            elif variableType == 'Integer':
+            elif variableType == "Integer":
                 simpleTypeRow = 1
-            elif variableType == 'Boolean':
+            elif variableType == "Boolean":
                 simpleTypeRow = 2
-            elif variableType == 'Enumeration':
+            elif variableType == "Enumeration":
                 simpleTypeRow = 1  # Integer
-            
-            variable[fmiVariableName] = pyMtsf.ScalarModelVariable(fmiVariable.description,
-                                                    causality,
-                                                    simpleTypeRow,
-                                                    variability,
-                                                    seriesIndex, categoryIndex,
-                                                    aliasName, aliasNegated)
+
+            variable[fmiVariableName] = pyMtsf.ScalarModelVariable(
+                fmiVariable.description,
+                causality,
+                simpleTypeRow,
+                variability,
+                seriesIndex,
+                categoryIndex,
+                aliasName,
+                aliasNegated,
+            )
 
     # Some basics for independent time variables
     startRow = len(units)
-    units.append(pyMtsf.Unit('s', 1.0, 0.0, 0))
-    units.append(pyMtsf.Unit('ms', 0.001, 0.0, 1))
-    units.append(pyMtsf.Unit('min', 60.0, 0.0, 1))
-    units.append(pyMtsf.Unit('h', 3600.0, 0.0, 1))
-    units.append(pyMtsf.Unit('d', 86400.0, 0.0, 1))
+    units.append(pyMtsf.Unit("s", 1.0, 0.0, 0))
+    units.append(pyMtsf.Unit("ms", 0.001, 0.0, 1))
+    units.append(pyMtsf.Unit("min", 60.0, 0.0, 1))
+    units.append(pyMtsf.Unit("h", 3600.0, 0.0, 1))
+    units.append(pyMtsf.Unit("d", 86400.0, 0.0, 1))
 
-    simpleTypes.append(pyMtsf.SimpleType('Time', pyMtsf.DataType["Real"], 'Time', False, startRow, ''))
-    variable['Time'].simpleTypeRow = len(simpleTypes) - 1
-    variable['TimeDiscrete'].simpleTypeRow = len(simpleTypes) - 1
+    simpleTypes.append(
+        pyMtsf.SimpleType("Time", pyMtsf.DataType["Real"], "Time", False, startRow, "")
+    )
+    variable["Time"].simpleTypeRow = len(simpleTypes) - 1
+    variable["TimeDiscrete"].simpleTypeRow = len(simpleTypes) - 1
 
-    modelDescription = pyMtsf.ModelDescription(_None2Str(fmi.modelName), _None2Str(fmi.description), _None2Str(fmi.author), _None2Str(fmi.version), _None2Str(fmi.generationTool), _None2Str(fmi.generationDateAndTime), fmi.variableNamingConvention)
-    modelVariables = pyMtsf.ModelVariables(variable, StandardSeriesForFmi, pyMtsf.StandardCategoryNames)
+    modelDescription = pyMtsf.ModelDescription(
+        _None2Str(fmi.modelName),
+        _None2Str(fmi.description),
+        _None2Str(fmi.author),
+        _None2Str(fmi.version),
+        _None2Str(fmi.generationTool),
+        _None2Str(fmi.generationDateAndTime),
+        fmi.variableNamingConvention,
+    )
+    modelVariables = pyMtsf.ModelVariables(
+        variable, StandardSeriesForFmi, pyMtsf.StandardCategoryNames
+    )
 
     return modelDescription, modelVariables, simpleTypes, units, enumerationsMatrix
-
-
-
-

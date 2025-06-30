@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import distribute_setup
+
 distribute_setup.use_setuptools()
 
 import setuptools
@@ -12,13 +13,27 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_dir={"": "."},
     include_package_data=True,
-    package_data={"": ["Examples/FMU1.0/*", "Examples/FMU2.0/*", "Examples/LinearSystems/*", "Examples/Testing/*", "Icons/*", "Documentation/*", "*.txt", "*.pdf"]},
+    package_data={
+        "": [
+            "Examples/FMU1.0/*",
+            "Examples/FMU2.0/*",
+            "Examples/LinearSystems/*",
+            "Examples/Testing/*",
+            "Icons/*",
+            "Documentation/*",
+            "*.txt",
+            "*.pdf",
+        ]
+    },
     entry_points={
-        "setuptools.installation":  ['PySimulator = PySimulator.PySimulator:start_PySimulator'],
-        "gui_scripts":              ['PySimulator = PySimulator.PySimulator:start_PySimulator'],
-        "console_scripts":          ['PySimulatorConsole = PySimulator.PySimulator:start_PySimulator']
-        },
-
+        "setuptools.installation": [
+            "PySimulator = PySimulator.PySimulator:start_PySimulator"
+        ],
+        "gui_scripts": ["PySimulator = PySimulator.PySimulator:start_PySimulator"],
+        "console_scripts": [
+            "PySimulatorConsole = PySimulator.PySimulator:start_PySimulator"
+        ],
+    },
     install_requires=[
         "PySide>=1.1",
         "Traits>=4.2",
@@ -34,14 +49,13 @@ setuptools.setup(
         #    "Cython>=0.15",
         "scipy",
         "H5py",
-        "beautifulsoup4>=4.3.2"
-        ],
-
+        "beautifulsoup4>=4.3.2",
+    ],
     author="Deutsches Zentrum fuer Luft- und Raumfahrt e.V. - DLR (German Aerospace Center); Institute for System Dynamics and Control",
     author_email="Andreas Pfeiffer <Andreas.Pfeiffer@dlr.de>",
     description="Simulation and Analysis Environment in Python with Plugin Infrastructure",
     license="LGPL",
     keywords="Simulator, Simulation, FMU, MTSF, Modelica, Plotting, Analysis, Simulation Analysis",
     url="www.pysimulator.org",
-    platforms="Windows XP/Vista/7/8"
+    platforms="Windows XP/Vista/7/8",
 )

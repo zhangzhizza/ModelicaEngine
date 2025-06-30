@@ -1,4 +1,3 @@
-
 class NotCompiledException(Exception):
     def __init__(self, *args):
         if args:
@@ -8,6 +7,6 @@ class NotCompiledException(Exception):
 
     def __str__(self):
         if self.message:
-            return '{0}'.format(self.message)
+            return "{0}".format(self.message)
         else:
-            return 'The Modelica model is not compiled yet'
+            return "The Modelica model is not compiled yet"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2014 ITI GmbH
 All rights reserved.
 
@@ -19,7 +19,7 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
 # SimulationX constants
 

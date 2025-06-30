@@ -2,6 +2,7 @@ import asyncio
 
 from asyncua import Client
 
+
 async def main():
     url = "opc.tcp://localhost:4802"
     async with Client(url=url) as client:
@@ -23,9 +24,10 @@ async def main():
         path_strs = await get(path)
 
         print(path_strs)
-        node = await client.nodes.root.get_child(['0:Objects', '1:x_Tdb'])
+        node = await client.nodes.root.get_child(["0:Objects", "1:x_Tdb"])
         print(await node.get_value())
         await node.set_value(float(3))
+
 
 async def get(path):
     path_strs = []
@@ -36,5 +38,6 @@ async def get(path):
         print(dir(browse_name))
         path_strs.append(browse_name.to_string())
     return path_strs
+
 
 asyncio.run(main())

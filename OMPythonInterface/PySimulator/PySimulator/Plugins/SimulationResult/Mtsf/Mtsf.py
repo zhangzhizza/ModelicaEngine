@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2015 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,7 +21,7 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
 
 import numpy
@@ -35,17 +35,34 @@ from .. import IntegrationResults
 import pyMtsf
 import MtsfFmi
 
-fileExtension = 'mtsf'
-description = 'MA Time Series File Format'
+fileExtension = "mtsf"
+description = "MA Time Series File Format"
+
 
 class Results(IntegrationResults.Results):
-    ''' Result file object for an MTSF file
-    '''
+    """Result file object for an MTSF file"""
 
-    def __init__(self, resultFileName, modelDescription=None, modelVariables=None, experimentSetup=None, simpleTypes=None, units=None, enumerations=None):
+    def __init__(
+        self,
+        resultFileName,
+        modelDescription=None,
+        modelVariables=None,
+        experimentSetup=None,
+        simpleTypes=None,
+        units=None,
+        enumerations=None,
+    ):
         IntegrationResults.Results.__init__(self)
 
-        self._mtsf = pyMtsf.MTSF(resultFileName, modelDescription, modelVariables, experimentSetup, simpleTypes, units, enumerations)
+        self._mtsf = pyMtsf.MTSF(
+            resultFileName,
+            modelDescription,
+            modelVariables,
+            experimentSetup,
+            simpleTypes,
+            units,
+            enumerations,
+        )
 
         self.fileName = self._mtsf.fileName
         self.canLoadPartialData = True
@@ -65,8 +82,12 @@ class Results(IntegrationResults.Results):
         variabilityList = self._mtsf.fileData.variables["variability", :, 0].tolist()
         causalityList = self._mtsf.fileData.variables["causality", :, 0].tolist()
         SimpleTypeRows = self._mtsf.fileData.variables["simpleTypeRow", :, 0].tolist()
-        UnitRows = self._mtsf.file["ModelDescription/SimpleTypes"]["unitOrEnumerationRow", :, 0].tolist()
-        DataTypes = self._mtsf.file["ModelDescription/SimpleTypes"]["dataType", :, 0].tolist()
+        UnitRows = self._mtsf.file["ModelDescription/SimpleTypes"][
+            "unitOrEnumerationRow", :, 0
+        ].tolist()
+        DataTypes = self._mtsf.file["ModelDescription/SimpleTypes"][
+            "dataType", :, 0
+        ].tolist()
         try:
             Units = self._mtsf.file["ModelDescription/Units"]["name", :, 0].tolist()
         except:
@@ -79,25 +100,29 @@ class Results(IntegrationResults.Results):
         for i, k in pyMtsf.DataType.items():
             DataTypeStrings[k] = i
 
-
         if len(self.timeSeries) == 0:
-            for series in self._mtsf.file['/Results'].itervalues():
-                row = series.attrs['independentVariableRow']
-                interpolationMethod = series.attrs['interpolationMethod']
+            for series in self._mtsf.file["/Results"].itervalues():
+                row = series.attrs["independentVariableRow"]
+                interpolationMethod = series.attrs["interpolationMethod"]
                 if row < 0:
                     independentVariable = None
                 else:
-                    independentVariable, trash, trash = self.readData(self._mtsf.fileData.nameList[row])
+                    independentVariable, trash, trash = self.readData(
+                        self._mtsf.fileData.nameList[row]
+                    )
                 for category in series.itervalues():
                     if category.size > 5000000:
                         data = None  # Memory problem for huge files
                     else:
                         data = numpy.array(category)
-                    self.timeSeries.append(IntegrationResults.TimeSeries(independentVariable, data, interpolationMethod))
+                    self.timeSeries.append(
+                        IntegrationResults.TimeSeries(
+                            independentVariable, data, interpolationMethod
+                        )
+                    )
                     self.timeSeries[-1].name = category.name
 
             self.nTimeSeries = len(self.timeSeries)
-
 
         timeSeriesNameList = [x.name for x in self.timeSeries]
 
@@ -109,29 +134,35 @@ class Results(IntegrationResults.Results):
             simpleTypeRow = SimpleTypeRows[i]
             unitRow = UnitRows[simpleTypeRow]
             dataType = DataTypes[simpleTypeRow]
-            if variabilityList[i] in [pyMtsf.VariabilityType['constant'], pyMtsf.VariabilityType['fixed']]:
-                variability = 'fixed'
-            elif variabilityList[i] in [pyMtsf.VariabilityType['tunable'], pyMtsf.VariabilityType['discrete']]:
-                variability = 'discrete'
+            if variabilityList[i] in [
+                pyMtsf.VariabilityType["constant"],
+                pyMtsf.VariabilityType["fixed"],
+            ]:
+                variability = "fixed"
+            elif variabilityList[i] in [
+                pyMtsf.VariabilityType["tunable"],
+                pyMtsf.VariabilityType["discrete"],
+            ]:
+                variability = "discrete"
             else:
-                variability = 'continuous'
+                variability = "continuous"
             value = None
-            if variability == 'fixed':
+            if variability == "fixed":
                 t, y, method = self._mtsf.readData(name)
                 value = y[0]
-                if dataType == pyMtsf.DataType['Boolean']:
+                if dataType == pyMtsf.DataType["Boolean"]:
                     if value == 0:
-                        value = 'false'
+                        value = "false"
                     else:
-                        value = 'true'
+                        value = "true"
 
             infos = collections.OrderedDict()
             if self._mtsf.fileData.descriptionList[i] is not None:
                 if len(self._mtsf.fileData.descriptionList[i]) > 0:
-                    infos['Description'] = self._mtsf.fileData.descriptionList[i]
-            infos['Variability'] = variability
-            infos['Causality'] = CausalityStrings[causalityList[i]]
-            infos['Type'] = DataTypeStrings[dataType]
+                    infos["Description"] = self._mtsf.fileData.descriptionList[i]
+            infos["Variability"] = variability
+            infos["Causality"] = CausalityStrings[causalityList[i]]
+            infos["Type"] = DataTypeStrings[dataType]
             if unitRow > -1:
                 unit = Units[unitRow]
             else:
@@ -141,35 +172,36 @@ class Results(IntegrationResults.Results):
             seriesIndex = timeSeriesNameList.index(self._mtsf.file[objectId].name)
             column = self._mtsf.fileData.columnList[i]
             sign = -1 if self._mtsf.fileData.negatedList[i] else 1
-            variables[name] = IntegrationResults.ResultVariable(value, unit, variability, infos, seriesIndex, column, sign)
+            variables[name] = IntegrationResults.ResultVariable(
+                value, unit, variability, infos, seriesIndex, column, sign
+            )
         return variables
 
 
-
 def convertFromDymolaMatFile(matFilename, mtsfFilename=None):
-    ''' Converts a Dymola result file (in mat-format) into the MTSF format.
-        Returns the filename of the new result file
-    '''
+    """Converts a Dymola result file (in mat-format) into the MTSF format.
+    Returns the filename of the new result file
+    """
 
     # Define file name of result file
     if mtsfFilename is None:
         if len(matFilename) >= 4:
-            if matFilename[-4:] == '.mat':
-                resultFileName = matFilename[:-4] + '.mtsf'
+            if matFilename[-4:] == ".mat":
+                resultFileName = matFilename[:-4] + ".mtsf"
             else:
-                resultFileName = matFilename + '.mtsf'
+                resultFileName = matFilename + ".mtsf"
         else:
-            resultFileName = matFilename + '.mtsf'
+            resultFileName = matFilename + ".mtsf"
     else:
-        if '.mtsf' in mtsfFilename:
-            if mtsfFilename[-5:] == '.mtsf':
+        if ".mtsf" in mtsfFilename:
+            if mtsfFilename[-5:] == ".mtsf":
                 resultFileName = mtsfFilename
             else:
-                resultFileName = mtsfFilename + '.mtsf'
+                resultFileName = mtsfFilename + ".mtsf"
         else:
-            resultFileName = mtsfFilename + '.mtsf'
+            resultFileName = mtsfFilename + ".mtsf"
 
-    from ..DymolaMat import DymolaMat   
+    from ..DymolaMat import DymolaMat
 
     # Load mat-file
     res = DymolaMat.Results(matFilename)
@@ -178,7 +210,10 @@ def convertFromDymolaMatFile(matFilename, mtsfFilename=None):
     variable = collections.OrderedDict()
 
     # Search for aliases
-    sortedVariables = [(i, res._dataInfo[i, 0], abs(res._dataInfo[i, 1])) for i in xrange(len(res._name))]
+    sortedVariables = [
+        (i, res._dataInfo[i, 0], abs(res._dataInfo[i, 1]))
+        for i in xrange(len(res._name))
+    ]
     sortedVariables.sort(key=itemgetter(2))
     sortedVariables.sort(key=itemgetter(1))
     aliasName = [None for i in xrange(len(res._name))]
@@ -187,7 +222,10 @@ def convertFromDymolaMatFile(matFilename, mtsfFilename=None):
         alias = None
         j = i
         while j > 0:
-            if sortedVariables[j - 1][1] != var[1] or sortedVariables[j - 1][2] != var[2]:
+            if (
+                sortedVariables[j - 1][1] != var[1]
+                or sortedVariables[j - 1][2] != var[2]
+            ):
                 break
             else:
                 j -= 1
@@ -196,69 +234,118 @@ def convertFromDymolaMatFile(matFilename, mtsfFilename=None):
         aliasName[index] = alias
     dataIndexFixed = []
     dataIndexContinuous = []
-    categoryIndex = pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping['Real'])
-    for index, variableName in enumerate(res._name):        
+    categoryIndex = pyMtsf.StandardCategoryNames.index(pyMtsf.CategoryMapping["Real"])
+    for index, variableName in enumerate(res._name):
         aliasNegated = False
         if res._dataInfo[index, 0] == 1:
-            variability = 'fixed'
+            variability = "fixed"
             seriesIndex = 0  # Fixed
         else:
-            variability = 'continuous'
+            variability = "continuous"
             seriesIndex = 1  # Continuous
         if res._dataInfo[index, 1] < 0:
             aliasNegated = True
         if aliasName[index] is None:
-            if variability == 'fixed':
+            if variability == "fixed":
                 dataIndexFixed.append(abs(res._dataInfo[index, 1]) - 1)
             else:
                 dataIndexContinuous.append(abs(res._dataInfo[index, 1]) - 1)
-        variable[variableName] = pyMtsf.ScalarModelVariable(res._description[index],
-                                                    'option',
-                                                    0,  # may be set later
-                                                    variability,
-                                                    seriesIndex, categoryIndex,
-                                                    aliasName[index], aliasNegated)
-    modelVariables = pyMtsf.ModelVariables(variable, MtsfFmi.StandardSeriesForFmi, pyMtsf.StandardCategoryNames)
+        variable[variableName] = pyMtsf.ScalarModelVariable(
+            res._description[index],
+            "option",
+            0,  # may be set later
+            variability,
+            seriesIndex,
+            categoryIndex,
+            aliasName[index],
+            aliasNegated,
+        )
+    modelVariables = pyMtsf.ModelVariables(
+        variable, MtsfFmi.StandardSeriesForFmi, pyMtsf.StandardCategoryNames
+    )
     timeData = res.data("Time")
     modelVariables.allSeries[1].initialRows = len(timeData)  # Continuous
     simpleTypes = []
     units = []
     enumerations = []
-    simpleTypes.append(pyMtsf.SimpleType('Real without unit', pyMtsf.DataType["Real"], '', False, -1, ''))  # No unit
+    simpleTypes.append(
+        pyMtsf.SimpleType(
+            "Real without unit", pyMtsf.DataType["Real"], "", False, -1, ""
+        )
+    )  # No unit
 
     unitList = [(index, unit) for index, unit in enumerate(res._unit)]
     unitList.sort(key=itemgetter(1))
-    preUnit = ''
+    preUnit = ""
     for x in unitList:
         index = x[0]
         unit = x[1]
-        if unit != '':
+        if unit != "":
             if preUnit != unit:
                 units.append(pyMtsf.Unit(unit, 1.0, 0.0, 0))
-                simpleTypes.append(pyMtsf.SimpleType('Real, Unit = ' + unit, pyMtsf.DataType["Real"], '', False, len(units) - 1, ''))
+                simpleTypes.append(
+                    pyMtsf.SimpleType(
+                        "Real, Unit = " + unit,
+                        pyMtsf.DataType["Real"],
+                        "",
+                        False,
+                        len(units) - 1,
+                        "",
+                    )
+                )
                 preUnit = unit
-                modelVariables.variable[res._name[index]].simpleTypeRow = len(simpleTypes) - 1
+                modelVariables.variable[res._name[index]].simpleTypeRow = (
+                    len(simpleTypes) - 1
+                )
             else:
-                modelVariables.variable[res._name[index]].simpleTypeRow = len(simpleTypes) - 1
-    experimentSetup = pyMtsf.ExperimentSetup(startTime=timeData[0], stopTime=timeData[-1], algorithm="",
-                        relativeTolerance='', author="", description="",
-                        generationDateAndTime=time.strftime("%a, %d %b %Y %H:%M:%S", time.gmtime()),
-                        generationTool="Python", machine=os.getenv('COMPUTERNAME'),
-                        cpuTime="")
-    modelDescription = pyMtsf.ModelDescription(resultFileName[:-5], '', '', '', '', '', 'structured')
+                modelVariables.variable[res._name[index]].simpleTypeRow = (
+                    len(simpleTypes) - 1
+                )
+    experimentSetup = pyMtsf.ExperimentSetup(
+        startTime=timeData[0],
+        stopTime=timeData[-1],
+        algorithm="",
+        relativeTolerance="",
+        author="",
+        description="",
+        generationDateAndTime=time.strftime("%a, %d %b %Y %H:%M:%S", time.gmtime()),
+        generationTool="Python",
+        machine=os.getenv("COMPUTERNAME"),
+        cpuTime="",
+    )
+    modelDescription = pyMtsf.ModelDescription(
+        resultFileName[:-5], "", "", "", "", "", "structured"
+    )
     # Create result object
-    mtsf = pyMtsf.MTSF(resultFileName, modelDescription, modelVariables, experimentSetup, simpleTypes, units, enumerations)
+    mtsf = pyMtsf.MTSF(
+        resultFileName,
+        modelDescription,
+        modelVariables,
+        experimentSetup,
+        simpleTypes,
+        units,
+        enumerations,
+    )
     # Write numeric data
-    fixedValues = numpy.ndarray((len(dataIndexFixed,)))
+    fixedValues = numpy.ndarray(
+        (
+            len(
+                dataIndexFixed,
+            )
+        )
+    )
     for i, index in enumerate(dataIndexFixed):
         fixedValues[i] = res._data[0][0, index]
     continuousValues = numpy.ndarray((len(timeData), len(dataIndexContinuous)))
     for i, index in enumerate(dataIndexContinuous):
         continuousValues[:, i] = res._data[1][:, index]
-    mtsf.results.series['Fixed'].category[pyMtsf.CategoryMapping['Real']].writeData(fixedValues)
-    mtsf.results.series['Continuous'].category[pyMtsf.CategoryMapping['Real']].writeData(continuousValues)
+    mtsf.results.series["Fixed"].category[pyMtsf.CategoryMapping["Real"]].writeData(
+        fixedValues
+    )
+    mtsf.results.series["Continuous"].category[
+        pyMtsf.CategoryMapping["Real"]
+    ].writeData(continuousValues)
 
     # Close file
     mtsf.close()
     return resultFileName
-

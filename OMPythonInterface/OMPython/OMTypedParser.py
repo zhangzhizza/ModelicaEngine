@@ -5,7 +5,9 @@ from __future__ import division
 from __future__ import print_function
 from builtins import int, range
 
-__author__ = "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
+__author__ = (
+    "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
+)
 __license__ = """
  This file is part of OpenModelica.
 
@@ -57,6 +59,7 @@ from pyparsing import (
 
 import sys
 
+
 def convertNumbers(s, l, toks):
     n = toks[0]
     try:
@@ -66,17 +69,18 @@ def convertNumbers(s, l, toks):
 
 
 def convertString2(s, s2):
-    tmp = s2[0].replace("\\\"", "\"")
-    tmp = tmp.replace("\"", "\\\"")
-    tmp = tmp.replace("\'", "\\'")
+    tmp = s2[0].replace('\\"', '"')
+    tmp = tmp.replace('"', '\\"')
+    tmp = tmp.replace("'", "\\'")
     tmp = tmp.replace("\f", "\\f")
     tmp = tmp.replace("\n", "\\n")
     tmp = tmp.replace("\r", "\\r")
     tmp = tmp.replace("\t", "\\t")
-    return "'"+tmp+"'";
+    return "'" + tmp + "'"
+
 
 def convertString(s, s2):
-    return s2[0].replace("\\\"", '"')
+    return s2[0].replace('\\"', '"')
 
 
 def convertDict(d):
@@ -92,24 +96,55 @@ omcValue = Forward()
 
 TRUE = Keyword("true").setParseAction(replaceWith(True))
 FALSE = Keyword("false").setParseAction(replaceWith(False))
-NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))
-SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
+NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(
+    replaceWith(None)
+)
+SOME = Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")")
 
-omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).setParseAction(convertString)
-omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
-                    Optional('.' + Word(nums)) +
-                    Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
+omcString = QuotedString(quoteChar='"', escChar="\\", multiline=True).setParseAction(
+    convertString
+)
+omcNumber = Combine(
+    Optional("-")
+    + ("0" | Word("123456789", nums))
+    + Optional("." + Word(nums))
+    + Optional(Word("eE", exact=1) + Word(nums + "+-", nums))
+)
 
-#ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
-ident = Word(alphas + "_", alphanums + "_") | QuotedString(quoteChar='\'', escChar='\\').setParseAction(convertString2)
+# ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
+ident = Word(alphas + "_", alphanums + "_") | QuotedString(
+    quoteChar="'", escChar="\\"
+).setParseAction(convertString2)
 fqident = Forward()
 fqident << ((ident + "." + fqident) | ident)
 omcValues = delimitedList(omcValue)
-omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).setParseAction(convertTuple)
-omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).setParseAction(convertTuple)
-omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
-recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
-omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
+omcTuple = Group(Suppress("(") + Optional(omcValues) + Suppress(")")).setParseAction(
+    convertTuple
+)
+omcArray = Group(Suppress("{") + Optional(omcValues) + Suppress("}")).setParseAction(
+    convertTuple
+)
+omcValue << (
+    omcString
+    | omcNumber
+    | omcRecord
+    | omcArray
+    | omcTuple
+    | SOME
+    | TRUE
+    | FALSE
+    | NONE
+    | Combine(fqident)
+)
+recordMember = delimitedList(Group(ident + Suppress("=") + omcValue))
+omcRecord << Group(
+    Suppress("record")
+    + Suppress(fqident)
+    + Dict(recordMember)
+    + Suppress("end")
+    + Suppress(fqident)
+    + Suppress(";")
+).setParseAction(convertDict)
 
 omcGrammar = Optional(omcValue) + StringEnd()
 
@@ -119,7 +154,7 @@ omcNumber.setParseAction(convertNumbers)
 def parseString(string):
     res = omcGrammar.parseString(string)
     if len(res) == 0:
-      return
+        return
     return res[0]
 
 
@@ -131,7 +166,14 @@ if __name__ == "__main__":
   'stop*Time' = SOME(1.0)
 end ABC;})
     """
-    expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
+    expected = (
+        1.0,
+        (
+            (1, True, 3),
+            ('4"\n', 5.9, 6, None),
+            {"'stop*Time'": 1.0, "startTime": "ErrorLevel.warning"},
+        ),
+    )
     results = parseString(testdata)
     if results != expected:
         print("Results:", results)

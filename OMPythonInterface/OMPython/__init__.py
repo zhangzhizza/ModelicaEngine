@@ -57,10 +57,10 @@ import numpy as np
 import pyparsing
 
 
-if sys.platform == 'darwin':
+if sys.platform == "darwin":
     # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
-    sys.path.append('/opt/local/lib/python2.7/site-packages/')
-    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
+    sys.path.append("/opt/local/lib/python2.7/site-packages/")
+    sys.path.append("/opt/openmodelica/lib/python2.7/site-packages/")
 
 # TODO: replace this with the new parser
 from OMPython import OMTypedParser, OMParser
@@ -95,49 +95,65 @@ __license__ = """
 """
 
 # Logger Defined
-logger = logging.getLogger('OMPython')
+logger = logging.getLogger("OMPython")
 logger.setLevel(logging.INFO)
 # create console handler with a higher log level
 logger_console_handler = logging.StreamHandler()
 logger_console_handler.setLevel(logging.INFO)
 
 # create formatter and add it to the handlers
-logger_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger_console_handler.setFormatter(logger_formatter)
 
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
 logger.setLevel(logging.WARNING)
 
-class DummyPopen():
-  def __init__(self, pid):
-    self.pid = pid
-    self.process = psutil.Process(pid)
-    self.returncode = 0
-  def poll(self):
-    return None if self.process.is_running() else True
-  def kill(self):
-    return os.kill(self.pid, signal.SIGKILL)
-  def wait(self, timeout):
-    return self.process.wait(timeout=timeout)
 
-class OMCSessionHelper():
-  def __init__(self):
-    # Get the path to the OMC executable, if not installed this will be None
-    omc_env_home = os.environ.get('OPENMODELICAHOME')
-    if omc_env_home:
-      self.omhome = omc_env_home
-    else:
-      path_to_omc = spawn.find_executable("omc")
-      if path_to_omc is None:
-        raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
-      self.omhome = os.path.split(os.path.split(os.path.realpath(path_to_omc))[0])[0]
-  def _get_omc_path(self):
-    try:
-      return os.path.join(self.omhome, 'bin', 'omc')
-    except BaseException:
-      logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
-      raise
+class DummyPopen:
+    def __init__(self, pid):
+        self.pid = pid
+        self.process = psutil.Process(pid)
+        self.returncode = 0
+
+    def poll(self):
+        return None if self.process.is_running() else True
+
+    def kill(self):
+        return os.kill(self.pid, signal.SIGKILL)
+
+    def wait(self, timeout):
+        return self.process.wait(timeout=timeout)
+
+
+class OMCSessionHelper:
+    def __init__(self):
+        # Get the path to the OMC executable, if not installed this will be None
+        omc_env_home = os.environ.get("OPENMODELICAHOME")
+        if omc_env_home:
+            self.omhome = omc_env_home
+        else:
+            path_to_omc = spawn.find_executable("omc")
+            if path_to_omc is None:
+                raise ValueError(
+                    "Cannot find OpenModelica executable, please install from openmodelica.org"
+                )
+            self.omhome = os.path.split(
+                os.path.split(os.path.realpath(path_to_omc))[0]
+            )[0]
+
+    def _get_omc_path(self):
+        try:
+            return os.path.join(self.omhome, "bin", "omc")
+        except BaseException:
+            logger.error(
+                "The OpenModelica compiler is missing in the System path (%s), please install it"
+                % os.path.join(self.omhome, "bin", "omc")
+            )
+            raise
+
 
 class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
@@ -166,25 +182,28 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
     def __del__(self):
         try:
-          self.sendExpression("quit()")
+            self.sendExpression("quit()")
         except:
-          pass
+            pass
         self._omc_log_file.close()
         if sys.version_info.major >= 3:
-          try:
-            self._omc_process.wait(timeout=2.0)
-          except:
-            if self._omc_process:
-              self._omc_process.kill()
+            try:
+                self._omc_process.wait(timeout=2.0)
+            except:
+                if self._omc_process:
+                    self._omc_process.kill()
         else:
-          for i in range(0,100):
-            time.sleep(0.02)
-            if self._omc_process and (self._omc_process.poll() is not None):
-              break
+            for i in range(0, 100):
+                time.sleep(0.02)
+                if self._omc_process and (self._omc_process.poll() is not None):
+                    break
         # kill self._omc_process process if it is still running/exists
         if self._omc_process is not None and self._omc_process.returncode is None:
-            print("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
-            if sys.platform=="win32":
+            print(
+                "OMC did not exit after being sent the quit() command; killing the process with pid=%s"
+                % str(self._omc_process.pid)
+            )
+            if sys.platform == "win32":
                 self._omc_process.kill()
                 self._omc_process.wait()
             else:
@@ -193,71 +212,125 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                 self._omc_process.wait()
 
     def _create_omc_log_file(self, suffix):
-        if sys.platform == 'win32':
-            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
+        if sys.platform == "win32":
+            self._omc_log_file = open(
+                os.path.join(
+                    self._temp_dir,
+                    "openmodelica.{0}.{1}.log".format(suffix, self._random_string),
+                ),
+                "w",
+            )
         else:
             # this file must be closed in the destructor
-            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
+            self._omc_log_file = open(
+                os.path.join(
+                    self._temp_dir,
+                    "openmodelica.{0}.{1}.{2}.log".format(
+                        self._currentUser, suffix, self._random_string
+                    ),
+                ),
+                "w",
+            )
 
     def _start_omc_process(self, timeout):
-        if sys.platform == 'win32':
-            omhome_bin = os.path.join(self.omhome, 'bin').replace("\\", "/")
+        if sys.platform == "win32":
+            omhome_bin = os.path.join(self.omhome, "bin").replace("\\", "/")
             my_env = os.environ.copy()
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
+            self._omc_process = subprocess.Popen(
+                self._omc_command,
+                stdout=self._omc_log_file,
+                stderr=self._omc_log_file,
+                env=my_env,
+            )
         else:
             # set the user environment variable so omc running from wsgi has the same user as OMPython
             my_env = os.environ.copy()
             my_env["USER"] = self._currentUser
             # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env, preexec_fn=os.setsid)
+            self._omc_process = subprocess.Popen(
+                self._omc_command,
+                shell=True,
+                stdout=self._omc_log_file,
+                stderr=self._omc_log_file,
+                env=my_env,
+                preexec_fn=os.setsid,
+            )
         if self._docker:
-          for i in range(0,40):
-            try:
-              with open(self._dockerCidFile, "r") as fin:
-                self._dockerCid = fin.read().strip()
-            except:
-              pass
-            if self._dockerCid:
-              break
-            time.sleep(timeout / 40.0)
-          try:
-            os.remove(self._dockerCidFile)
-          except:
-            pass
-          if self._dockerCid is None:
-            logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
-            raise Exception("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)." % timeout)
-        if self._docker or self._dockerContainer:
-          if self._dockerNetwork == "separate":
-            self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
-          for i in range(0,40):
-            if sys.platform == 'win32':
-              break
-            dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
-            self._omc_process = None
-            for line in dockerTop.split("\n"):
-              columns = line.split()
-              if self._random_string in line:
+            for i in range(0, 40):
                 try:
-                  self._omc_process = DummyPopen(int(columns[1]))
-                except psutil.NoSuchProcess:
-                  raise Exception("Could not find PID %d - is this a docker instance spawned without --pid=host?\nLog-file says:\n%s" % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
-                break
-            if self._omc_process is not None:
-              break
-            time.sleep(timeout / 40.0)
-          if self._omc_process is None:
-            raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s" % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
+                    with open(self._dockerCidFile, "r") as fin:
+                        self._dockerCid = fin.read().strip()
+                except:
+                    pass
+                if self._dockerCid:
+                    break
+                time.sleep(timeout / 40.0)
+            try:
+                os.remove(self._dockerCidFile)
+            except:
+                pass
+            if self._dockerCid is None:
+                logger.error(
+                    "Docker did not start. Log-file says:\n%s"
+                    % (open(self._omc_log_file.name).read())
+                )
+                raise Exception(
+                    "Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)."
+                    % timeout
+                )
+        if self._docker or self._dockerContainer:
+            if self._dockerNetwork == "separate":
+                self._serverIPAddress = json.loads(
+                    subprocess.check_output(["docker", "inspect", self._dockerCid])
+                    .decode()
+                    .strip()
+                )[0]["NetworkSettings"]["IPAddress"]
+            for i in range(0, 40):
+                if sys.platform == "win32":
+                    break
+                dockerTop = (
+                    subprocess.check_output(["docker", "top", self._dockerCid])
+                    .decode()
+                    .strip()
+                )
+                self._omc_process = None
+                for line in dockerTop.split("\n"):
+                    columns = line.split()
+                    if self._random_string in line:
+                        try:
+                            self._omc_process = DummyPopen(int(columns[1]))
+                        except psutil.NoSuchProcess:
+                            raise Exception(
+                                "Could not find PID %d - is this a docker instance spawned without --pid=host?\nLog-file says:\n%s"
+                                % (
+                                    self._random_string,
+                                    dockerTop,
+                                    open(self._omc_log_file.name).read(),
+                                )
+                            )
+                        break
+                if self._omc_process is not None:
+                    break
+                time.sleep(timeout / 40.0)
+            if self._omc_process is None:
+                raise Exception(
+                    "Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
+                    % (
+                        self._random_string,
+                        dockerTop,
+                        open(self._omc_log_file.name).read(),
+                    )
+                )
         return self._omc_process
 
     def _getuid(self):
-      """
-      The uid to give to docker.
-      On Windows, volumes are mapped with all files are chmod ugo+rwx,
-      so uid does not matter as long as it is not the root user.
-      """
-      return 1000 if sys.platform == 'win32' else os.getuid()
+        """
+        The uid to give to docker.
+        On Windows, volumes are mapped with all files are chmod ugo+rwx,
+        so uid does not matter as long as it is not the root user.
+        """
+        return 1000 if sys.platform == "win32" else os.getuid()
 
     def _set_omc_command(self, omc_path_and_args_list):
         """Define the command that will be called by the subprocess module.
@@ -269,36 +342,73 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         if (self._docker or self._dockerContainer) and sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise Exception(
+                    "docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later."
+                )
         else:
             extraFlags = []
         if self._docker:
             if sys.platform == "win32":
                 p = int(self._interactivePort)
-                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p,p)]
+                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
             elif self._dockerNetwork == "host" or self._dockerNetwork is None:
                 dockerNetworkStr = ["--network=host"]
             elif self._dockerNetwork == "separate":
                 dockerNetworkStr = []
                 extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             else:
-                raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
+                raise Exception(
+                    'dockerNetwork was set to %s, but only "host" or "separate" is allowed'
+                )
             self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
-            omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+            omcCommand = (
+                [
+                    "docker",
+                    "run",
+                    "--cidfile",
+                    self._dockerCidFile,
+                    "--rm",
+                    "--env",
+                    "USER=%s" % self._currentUser,
+                    "--user",
+                    str(self._getuid()),
+                ]
+                + self._dockerExtraArgs
+                + dockerNetworkStr
+                + [self._docker, self._dockerOpenModelicaPath]
+            )
         elif self._dockerContainer:
-            omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
+            omcCommand = (
+                [
+                    "docker",
+                    "exec",
+                    "--env",
+                    "USER=%s" % self._currentUser,
+                    "--user",
+                    str(self._getuid()),
+                ]
+                + self._dockerExtraArgs
+                + [self._dockerContainer, self._dockerOpenModelicaPath]
+            )
             self._dockerCid = self._dockerContainer
         else:
             omcCommand = [self._get_omc_path()]
         if self._interactivePort:
-            extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
+            extraFlags = extraFlags + [
+                "--interactivePort=%d" % int(self._interactivePort)
+            ]
 
         omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
 
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             self._omc_command = omc_path_and_args_list
         else:
-            self._omc_command = ' '.join([shlex.quote(a) if (sys.version_info > (3, 0)) else a for a in omc_path_and_args_list])
+            self._omc_command = " ".join(
+                [
+                    shlex.quote(a) if (sys.version_info > (3, 0)) else a
+                    for a in omc_path_and_args_list
+                ]
+            )
 
         return self._omc_command
 
@@ -337,17 +447,17 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
     def ask(self, question, opt=None, parsed=True):
         p = (question, opt, parsed)
 
-        if self.readonly and question != 'getErrorString':
+        if self.readonly and question != "getErrorString":
             # can use cache if readonly
             if p in self.omc_cache:
                 return self.omc_cache[p]
 
         if opt:
-            expression = '{0}({1})'.format(question, opt)
+            expression = "{0}({1})".format(question, opt)
         else:
             expression = question
 
-        logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
+        logger.debug("OMC ask: {0}  - parsed: {1}".format(expression, parsed))
 
         try:
             if parsed:
@@ -355,7 +465,9 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             else:
                 res = self.sendExpression(expression, parsed=False)
         except Exception as e:
-            logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
+            logger.error(
+                "OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed)
+            )
             raise e
 
         # save response
@@ -365,142 +477,167 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
     # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
     def loadFile(self, filename):
-        return self.ask('loadFile', '"{0}"'.format(filename))
+        return self.ask("loadFile", '"{0}"'.format(filename))
 
     def loadModel(self, className):
-        return self.ask('loadModel', className)
+        return self.ask("loadModel", className)
 
     def isModel(self, className):
-        return self.ask('isModel', className)
+        return self.ask("isModel", className)
 
     def isPackage(self, className):
-        return self.ask('isPackage', className)
+        return self.ask("isPackage", className)
 
     def isPrimitive(self, className):
-        return self.ask('isPrimitive', className)
+        return self.ask("isPrimitive", className)
 
     def isConnector(self, className):
-        return self.ask('isConnector', className)
+        return self.ask("isConnector", className)
 
     def isRecord(self, className):
-        return self.ask('isRecord', className)
+        return self.ask("isRecord", className)
 
     def isBlock(self, className):
-        return self.ask('isBlock', className)
+        return self.ask("isBlock", className)
 
     def isType(self, className):
-        return self.ask('isType', className)
+        return self.ask("isType", className)
 
     def isFunction(self, className):
-        return self.ask('isFunction', className)
+        return self.ask("isFunction", className)
 
     def isClass(self, className):
-        return self.ask('isClass', className)
+        return self.ask("isClass", className)
 
     def isParameter(self, className):
-        return self.ask('isParameter', className)
+        return self.ask("isParameter", className)
 
     def isConstant(self, className):
-        return self.ask('isConstant', className)
+        return self.ask("isConstant", className)
 
     def isProtected(self, className):
-        return self.ask('isProtected', className)
+        return self.ask("isProtected", className)
 
     def getPackages(self, className="AllLoadedClasses"):
-        return self.ask('getPackages', className)
+        return self.ask("getPackages", className)
 
     def getClassRestriction(self, className):
-        return self.ask('getClassRestriction', className)
+        return self.ask("getClassRestriction", className)
 
     def getDerivedClassModifierNames(self, className):
-        return self.ask('getDerivedClassModifierNames', className)
+        return self.ask("getDerivedClassModifierNames", className)
 
     def getDerivedClassModifierValue(self, className, modifierName):
-        return self.ask('getDerivedClassModifierValue', '{0}, {1}'.format(className, modifierName))
+        return self.ask(
+            "getDerivedClassModifierValue", "{0}, {1}".format(className, modifierName)
+        )
 
     def typeNameStrings(self, className):
-        return self.ask('typeNameStrings', className)
+        return self.ask("typeNameStrings", className)
 
     def getComponents(self, className):
-        return self.ask('getComponents', className)
+        return self.ask("getComponents", className)
 
     def getClassComment(self, className):
         try:
-            return self.ask('getClassComment', className)
+            return self.ask("getClassComment", className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for {0}".format(className))
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
-            return 'No description available'
+            logger.warning("OMTypedParser error: {0}".format(ex.message))
+            return "No description available"
 
     def getNthComponent(self, className, comp_id):
-        """ returns with (type, name, description) """
-        return self.ask('getNthComponent', '{0}, {1}'.format(className, comp_id))
+        """returns with (type, name, description)"""
+        return self.ask("getNthComponent", "{0}, {1}".format(className, comp_id))
 
     def getNthComponentAnnotation(self, className, comp_id):
-        return self.ask('getNthComponentAnnotation', '{0}, {1}'.format(className, comp_id))
+        return self.ask(
+            "getNthComponentAnnotation", "{0}, {1}".format(className, comp_id)
+        )
 
     def getImportCount(self, className):
-        return self.ask('getImportCount', className)
+        return self.ask("getImportCount", className)
 
     def getNthImport(self, className, importNumber):
         # [Path, id, kind]
-        return self.ask('getNthImport', '{0}, {1}'.format(className, importNumber))
+        return self.ask("getNthImport", "{0}, {1}".format(className, importNumber))
 
     def getInheritanceCount(self, className):
-        return self.ask('getInheritanceCount', className)
+        return self.ask("getInheritanceCount", className)
 
     def getNthInheritedClass(self, className, inheritanceDepth):
-        return self.ask('getNthInheritedClass', '{0}, {1}'.format(className, inheritanceDepth))
+        return self.ask(
+            "getNthInheritedClass", "{0}, {1}".format(className, inheritanceDepth)
+        )
 
     def getParameterNames(self, className):
         try:
-            return self.ask('getParameterNames', className)
+            return self.ask("getParameterNames", className)
         except KeyError as ex:
-            logger.warning('OMPython error: {0}'.format(ex))
+            logger.warning("OMPython error: {0}".format(ex))
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
 
     def getParameterValue(self, className, parameterName):
         try:
-            return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
+            return self.ask(
+                "getParameterValue", "{0}, {1}".format(className, parameterName)
+            )
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning("OMTypedParser error: {0}".format(ex.message))
             return ""
 
     def getComponentModifierNames(self, className, componentName):
-        return self.ask('getComponentModifierNames', '{0}, {1}'.format(className, componentName))
+        return self.ask(
+            "getComponentModifierNames", "{0}, {1}".format(className, componentName)
+        )
 
     def getComponentModifierValue(self, className, componentName):
         try:
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
+            return self.ask(
+                "getComponentModifierValue", "{0}, {1}".format(className, componentName)
+            )
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
-            result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
+            logger.warning("OMTypedParser error: {0}".format(ex.message))
+            result = self.ask(
+                "getComponentModifierValue",
+                "{0}, {1}".format(className, componentName),
+                parsed=False,
+            )
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex))
+                logger.warning("OMParser error: {0}".format(ex))
                 return result
 
     def getExtendsModifierNames(self, className, componentName):
-        return self.ask('getExtendsModifierNames', '{0}, {1}'.format(className, componentName))
+        return self.ask(
+            "getExtendsModifierNames", "{0}, {1}".format(className, componentName)
+        )
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
         try:
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
+            return self.ask(
+                "getExtendsModifierValue",
+                "{0}, {1}, {2}".format(className, extendsName, modifierName),
+            )
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
-            result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
+            logger.warning("OMTypedParser error: {0}".format(ex.message))
+            result = self.ask(
+                "getExtendsModifierValue",
+                "{0}, {1}, {2}".format(className, extendsName, modifierName),
+                parsed=False,
+            )
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex))
+                logger.warning("OMParser error: {0}".format(ex))
                 return result
 
     def getNthComponentModification(self, className, comp_id):
@@ -508,7 +645,11 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
         # get {$Code(....)} field
         # \{\$Code\((\S*\s*)*\)\}
-        value = self.ask('getNthComponentModification', '{0}, {1}'.format(className, comp_id), parsed=False)
+        value = self.ask(
+            "getNthComponentModification",
+            "{0}, {1}".format(className, comp_id),
+            parsed=False,
+        )
         value = value.replace("{$Code(", "")
         return value[:-3]
         # return self.re_Code.findall(value)
@@ -522,33 +663,67 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
     #   input Boolean showProtected = false "List also protected classes if true";
     #   output TypeName classNames[:];
     # end getClassNames;
-    def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
-                      showProtected=False):
+    def getClassNames(
+        self,
+        className=None,
+        recursive=False,
+        qualified=False,
+        sort=False,
+        builtin=False,
+        showProtected=False,
+    ):
         if className:
-            value = self.ask('getClassNames',
-                             '{0}, recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}'.format(
-                                 className, str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
-                                 str(builtin).lower(), str(showProtected).lower()))
+            value = self.ask(
+                "getClassNames",
+                "{0}, recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}".format(
+                    className,
+                    str(recursive).lower(),
+                    str(qualified).lower(),
+                    str(sort).lower(),
+                    str(builtin).lower(),
+                    str(showProtected).lower(),
+                ),
+            )
         else:
-            value = self.ask('getClassNames',
-                             'recursive={0}, qualified={1}, sort={2}, builtin={3}, showProtected={4}'.format(
-                                 str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
-                                 str(builtin).lower(), str(showProtected).lower()))
+            value = self.ask(
+                "getClassNames",
+                "recursive={0}, qualified={1}, sort={2}, builtin={3}, showProtected={4}".format(
+                    str(recursive).lower(),
+                    str(qualified).lower(),
+                    str(sort).lower(),
+                    str(builtin).lower(),
+                    str(showProtected).lower(),
+                ),
+            )
         return value
 
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 10.0, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
+    def __init__(
+        self,
+        readonly=False,
+        serverFlag="--interactive=corba",
+        timeout=10.0,
+        docker=None,
+        dockerContainer=None,
+        dockerExtraArgs=[],
+        dockerOpenModelicaPath="omc",
+        dockerNetwork=None,
+    ):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # Locating and using the IOR
-        if sys.platform != 'win32' or docker or dockerContainer:
-            self._port_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
+        if sys.platform != "win32" or docker or dockerContainer:
+            self._port_file = (
+                "openmodelica." + self._currentUser + ".objid." + self._random_string
+            )
         else:
             self._port_file = "openmodelica.objid." + self._random_string
-        self._port_file = os.path.join("/tmp" if (docker or dockerContainer) else self._temp_dir, self._port_file).replace("\\", "/")
+        self._port_file = os.path.join(
+            "/tmp" if (docker or dockerContainer) else self._temp_dir, self._port_file
+        ).replace("\\", "/")
         # set omc executable path and args
         self._docker = docker
         self._dockerContainer = dockerContainer
@@ -570,27 +745,38 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
 
     def _connect_to_omc(self, timeout):
         # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
-        sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
+        sys.path.append(os.path.join(self.omhome, "lib", "python"))
         # import the skeletons for the global module
         try:
-          from omniORB import CORBA
-          from OMPythonIDL import _OMCIDL
+            from omniORB import CORBA
+            from OMPythonIDL import _OMCIDL
         except ImportError:
-          self._omc_process.kill()
-          raise
+            self._omc_process.kill()
+            raise
         self._omc_corba_uri = "file:///" + self._port_file
         # See if the omc server is running
         attempts = 0
         while True:
             if self._dockerCid:
                 try:
-                    self._ior = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL if (sys.version_info > (3, 0)) else subprocess.STDOUT).decode().strip()
+                    self._ior = (
+                        subprocess.check_output(
+                            ["docker", "exec", self._dockerCid, "cat", self._port_file],
+                            stderr=(
+                                subprocess.DEVNULL
+                                if (sys.version_info > (3, 0))
+                                else subprocess.STDOUT
+                            ),
+                        )
+                        .decode()
+                        .strip()
+                    )
                     break
                 except subprocess.CalledProcessError:
                     pass
             if os.path.isfile(self._port_file):
                 # Read the IOR file
-                with open(self._port_file, 'r') as f_p:
+                with open(self._port_file, "r") as f_p:
                     self._ior = f_p.readline()
                 break
             attempts += 1
@@ -598,22 +784,31 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
                 with open(name) as fin:
-                  contents = fin.read()
+                    contents = fin.read()
                 self._omc_process.kill()
-                raise Exception("OMC Server is down (timeout=%f). Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba. Log-file says:\n%s" % (timeout, contents))
+                raise Exception(
+                    "OMC Server is down (timeout=%f). Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba. Log-file says:\n%s"
+                    % (timeout, contents)
+                )
             time.sleep(timeout / 80.0)
 
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file]).decode().strip()
+                    self._port = (
+                        subprocess.check_output(
+                            ["docker", "exec", self._dockerCid, "cat", self._port_file]
+                        )
+                        .decode()
+                        .strip()
+                    )
                     break
                 except:
                     pass
             else:
                 if os.path.isfile(self._port_file):
                     # Read the port file
-                    with open(self._port_file, 'r') as f_p:
+                    with open(self._port_file, "r") as f_p:
                         self._port = f_p.readline()
                     os.remove(self._port_file)
                     break
@@ -622,8 +817,14 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
             if attempts == 80.0:
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
-                logger.error("OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server is down. Could not open file %s" % (timeout,self._port_file))
+                logger.error(
+                    "OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s"
+                    % open(name).read()
+                )
+                raise Exception(
+                    "OMC Server is down. Could not open file %s"
+                    % (timeout, self._port_file)
+                )
             time.sleep(timeout / 80.0)
 
         logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
@@ -645,8 +846,8 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
 
     def execute(self, command):
         ## check for process is running
-        p=self._omc_process.poll()
-        if (p == None):
+        p = self._omc_process.poll()
+        if p == None:
             result = self._omc.sendExpression(command)
             if command == "quit()":
                 self._omc = None
@@ -655,12 +856,14 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 answer = OMParser.check_for_values(result)
                 return answer
         else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
+            raise Exception(
+                "Process Exited, No connection with OMC. Create a new instance of OMCSession"
+            )
 
     def sendExpression(self, command, parsed=True):
         ## check for process is running
-        p=self._omc_process.poll()
-        if (p== None):
+        p = self._omc_process.poll()
+        if p == None:
             result = self._omc.sendExpression(str(command))
             if command == "quit()":
                 self._omc = None
@@ -672,21 +875,37 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
+            raise Exception(
+                "Process Exited, No connection with OMC. Create a new instance of OMCSession"
+            )
+
 
 try:
-  import zmq
+    import zmq
 except ImportError:
-  pass
+    pass
+
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 10.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
+    def __init__(
+        self,
+        readonly=False,
+        timeout=10.00,
+        docker=None,
+        dockerContainer=None,
+        dockerExtraArgs=[],
+        dockerOpenModelicaPath="omc",
+        dockerNetwork=None,
+        port=None,
+    ):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
-        if sys.platform != 'win32' or docker or dockerContainer:
-            self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
+        if sys.platform != "win32" or docker or dockerContainer:
+            self._port_file = (
+                "openmodelica." + self._currentUser + ".port." + self._random_string
+            )
         else:
             self._port_file = "openmodelica.port." + self._random_string
         self._docker = docker
@@ -696,14 +915,14 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         self._dockerNetwork = dockerNetwork
         self._create_omc_log_file("port")
         self._timeout = timeout
-        self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
+        self._port_file = os.path.join(
+            "/tmp" if docker else self._temp_dir, self._port_file
+        ).replace("\\", "/")
         self._interactivePort = port
         # set omc executable path and args
-        self._set_omc_command([
-                               "--interactive=zmq",
-                               "--locale=C",
-                               "-z={0}".format(self._random_string)
-                               ])
+        self._set_omc_command(
+            ["--interactive=zmq", "--locale=C", "-z={0}".format(self._random_string)]
+        )
         # start up omc executable, which is waiting for the ZMQ connection
         self._start_omc_process(timeout)
         # connect to the running omc instance using ZMQ
@@ -720,14 +939,25 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL if (sys.version_info > (3, 0)) else subprocess.STDOUT).decode().strip()
+                    self._port = (
+                        subprocess.check_output(
+                            ["docker", "exec", self._dockerCid, "cat", self._port_file],
+                            stderr=(
+                                subprocess.DEVNULL
+                                if (sys.version_info > (3, 0))
+                                else subprocess.STDOUT
+                            ),
+                        )
+                        .decode()
+                        .strip()
+                    )
                     break
                 except:
                     pass
             else:
                 if os.path.isfile(self._port_file):
                     # Read the port file
-                    with open(self._port_file, 'r') as f_p:
+                    with open(self._port_file, "r") as f_p:
                         self._port = f_p.readline()
                     os.remove(self._port_file)
                     break
@@ -736,19 +966,32 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
             if attempts == 80.0:
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
-                logger.error("OMC Server did not start. Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server did not start (timeout=%f). Could not open file %s" % (timeout,self._port_file))
+                logger.error(
+                    "OMC Server did not start. Please start it! Log-file says:\n%s"
+                    % open(name).read()
+                )
+                raise Exception(
+                    "OMC Server did not start (timeout=%f). Could not open file %s"
+                    % (timeout, self._port_file)
+                )
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
-        logger.info("OMC Server is up and running at {0} pid={1} cid={2}".format(self._omc_zeromq_uri, self._omc_process.pid, self._dockerCid))
+        logger.info(
+            "OMC Server is up and running at {0} pid={1} cid={2}".format(
+                self._omc_zeromq_uri, self._omc_process.pid, self._dockerCid
+            )
+        )
 
         # Create the ZeroMQ socket and connect to OMC server
         import zmq
+
         context = zmq.Context.instance()
         self._omc = context.socket(zmq.REQ)
-        self._omc.setsockopt(zmq.LINGER, 0) # Dismisses pending messages if closed
-        self._omc.setsockopt(zmq.IMMEDIATE, True) # Queue messages only to completed connections
+        self._omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
+        self._omc.setsockopt(
+            zmq.IMMEDIATE, True
+        )  # Queue messages only to completed connections
         self._omc.connect(self._port)
 
     def execute(self, command):
@@ -757,8 +1000,8 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
     def sendExpression(self, command, parsed=True):
         ## check for process is running
-        p=self._omc_process.poll()
-        if (p == None):
+        p = self._omc_process.poll()
+        if p == None:
             attempts = 0
             while True:
                 try:
@@ -770,7 +1013,10 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 if attempts == 50.0:
                     name = self._omc_log_file.name
                     self._omc_log_file.close()
-                    raise Exception("No connection with OMC (timeout=%f). Log-file says: \n%s" % (self._timeout, open(name).read()))
+                    raise Exception(
+                        "No connection with OMC (timeout=%f). Log-file says: \n%s"
+                        % (self._timeout, open(name).read())
+                    )
                 time.sleep(self._timeout / 50.0)
             if command == "quit()":
                 self._omc.close()
@@ -784,11 +1030,22 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
+            raise Exception(
+                "Process Exited, No connection with OMC. Create a new instance of OMCSession"
+            )
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, verbose=True):  # 1
+    def __init__(
+        self,
+        fileName=None,
+        modelName=None,
+        lmodel=[],
+        useCorba=False,
+        commandLineOptions=None,
+        variableFilter=None,
+        verbose=True,
+    ):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -806,16 +1063,27 @@ class ModelicaSystem(object):
             return
 
         self.tree = None
-        self.quantitiesList=[]
-        self.paramlist={}
-        self.inputlist={}
-        self.outputlist={}
-        self.continuouslist={}
-        self.simulateOptions={}
-        self.overridevariables={}
-        self.simoptionsoverride={}
-        self.linearOptions={'startTime':0.0, 'stopTime': 1.0, 'stepSize':0.002, 'tolerance':1e-8}
-        self.optimizeOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002, 'tolerance':1e-8}
+        self.quantitiesList = []
+        self.paramlist = {}
+        self.inputlist = {}
+        self.outputlist = {}
+        self.continuouslist = {}
+        self.simulateOptions = {}
+        self.overridevariables = {}
+        self.simoptionsoverride = {}
+        self.linearOptions = {
+            "startTime": 0.0,
+            "stopTime": 1.0,
+            "stepSize": 0.002,
+            "tolerance": 1e-8,
+        }
+        self.optimizeOptions = {
+            "startTime": 0.0,
+            "stopTime": 1.0,
+            "numberOfIntervals": 500,
+            "stepSize": 0.002,
+            "tolerance": 1e-8,
+        }
         self.linearinputs = []  # linearization input list
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
@@ -832,7 +1100,7 @@ class ModelicaSystem(object):
 
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
-            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
+            exp = "".join(["setCommandLineOptions(", '"', commandLineOptions, '"', ")"])
             self.getconn.sendExpression(exp)
 
         self.xmlFile = None
@@ -842,19 +1110,25 @@ class ModelicaSystem(object):
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
-        self.csvFile = ''  # for storing inputs condition
-        self.resultfile="" # for storing result file
+        self.csvFile = ""  # for storing inputs condition
+        self.resultfile = ""  # for storing result file
         self.variableFilter = variableFilter
 
-        if fileName is not None and  not os.path.exists(self.fileName):  # if file does not eixt
+        if fileName is not None and not os.path.exists(
+            self.fileName
+        ):  # if file does not eixt
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
 
         ## set default command Line Options for linearization as
         ## linearize() will use the simulation executable and runtime
         ## flag -l to perform linearization
-        self.getconn.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
-        self.getconn.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
+        self.getconn.sendExpression(
+            'setCommandLineOptions("--linearizationDumpLanguage=python")'
+        )
+        self.getconn.sendExpression(
+            'setCommandLineOptions("--generateSymbolicLinearization")'
+        )
 
         self.setTempDirectory()
 
@@ -874,14 +1148,16 @@ class ModelicaSystem(object):
     def setCommandLineOptions(self):
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
-            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
+            exp = "".join(["setCommandLineOptions(", '"', commandLineOptions, '"', ")"])
             cmdexp = self.getconn.sendExpression(exp)
             if not cmdexp:
                 return print(self.getconn.sendExpression("getErrorString()"))
 
     def loadFile(self, verbose):
         # load file
-        loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
+        loadFileExp = "".join(["loadFile(", '"', self.fileName, '"', ")"]).replace(
+            "\\", "/"
+        )
         loadMsg = self.getconn.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
         if verbose or not loadMsg:
@@ -902,13 +1178,31 @@ class ModelicaSystem(object):
                     if not element[1]:
                         libname = "".join(["loadModel(", element[0], ")"])
                     else:
-                        libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
+                        libname = "".join(
+                            [
+                                "loadModel(",
+                                element[0],
+                                ", ",
+                                "{",
+                                '"',
+                                element[1],
+                                '"',
+                                "}",
+                                ")",
+                            ]
+                        )
                     result = self.sendExpression(libname)
                 else:
-                    print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
+                    print(
+                        "| info | loadLibrary() failed, Unknown type detected: ",
+                        element,
+                        " is of type ",
+                        type(element),
+                        ', The following patterns are supported\n1)["Modelica"]\n2)[("Modelica","3.2.3"), "PowerSystems"]\n',
+                    )
                 ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
                 if verbose or not result:
-                    print(self.requestApi('getErrorString'))
+                    print(self.requestApi("getErrorString"))
 
     def setTempDirectory(self):
         # create a unique temp directory for each session and build the model in that directory
@@ -916,7 +1210,7 @@ class ModelicaSystem(object):
         if not os.path.exists(self.tempdir):
             return print(self.tempdir, " cannot be created")
 
-        exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
+        exp = "".join(["cd(", '"', self.tempdir, '"', ")"]).replace("\\", "/")
         self.getconn.sendExpression(exp)
 
     def getWorkDirectory(self):
@@ -927,38 +1221,42 @@ class ModelicaSystem(object):
             self.variableFilter = variableFilter
 
         if self.variableFilter is not None:
-            varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
+            varFilter = "variableFilter=" + '"' + self.variableFilter + '"'
         else:
-            varFilter = "variableFilter=" +  "\".*""\""
+            varFilter = "variableFilter=" + '".*' '"'
         # print(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
-        buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
+        buildModelResult = self.requestApi(
+            "buildModel", self.modelName, properties=varFilter
+        )
         buildModelError = self.requestApi("getErrorString")
 
-        if ('' in buildModelResult):
+        if "" in buildModelResult:
             print(buildModelError)
 
         # Issue #145. Always print the getErrorString since it might contains build warnings.
         if verbose:
             print(buildModelError)
 
-        self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
+        self.xmlFile = os.path.join(
+            os.path.dirname(buildModelResult[0]), buildModelResult[1]
+        ).replace("\\", "/")
         self.xmlparse()
 
-    def sendExpression(self,expr,parsed=True):
-        return self.getconn.sendExpression(expr,parsed)
+    def sendExpression(self, expr, parsed=True):
+        return self.getconn.sendExpression(expr, parsed)
 
     # request to OMC
     def requestApi(self, apiName, entity=None, properties=None):  # 2
-        if (entity is not None and properties is not None):
-            exp = '{}({}, {})'.format(apiName, entity, properties)
+        if entity is not None and properties is not None:
+            exp = "{}({}, {})".format(apiName, entity, properties)
         elif entity is not None and properties is None:
-            if (apiName == "loadFile" or apiName == "importFMU"):
+            if apiName == "loadFile" or apiName == "importFMU":
                 exp = '{}("{}")'.format(apiName, entity)
             else:
-                exp = '{}({})'.format(apiName, entity)
+                exp = "{}({})".format(apiName, entity)
         else:
-            exp = '{}()'.format(apiName)
+            exp = "{}()".format(apiName)
         try:
             res = self.getconn.sendExpression(exp)
         except Exception as e:
@@ -966,58 +1264,58 @@ class ModelicaSystem(object):
             res = None
         return res
 
-
     def xmlparse(self):
-        if(os.path.exists(self.xmlFile)):
+        if os.path.exists(self.xmlFile):
             self.tree = ET.parse(self.xmlFile)
             self.root = self.tree.getroot()
             rootCQ = self.root
-            for attr in rootCQ.iter('DefaultExperiment'):
-                self.simulateOptions["startTime"]= attr.get('startTime')
-                self.simulateOptions["stopTime"] = attr.get('stopTime')
-                self.simulateOptions["stepSize"] = attr.get('stepSize')
-                self.simulateOptions["tolerance"] = attr.get('tolerance')
-                self.simulateOptions["solver"] = attr.get('solver')
-                self.simulateOptions["outputFormat"] = attr.get('outputFormat')
+            for attr in rootCQ.iter("DefaultExperiment"):
+                self.simulateOptions["startTime"] = attr.get("startTime")
+                self.simulateOptions["stopTime"] = attr.get("stopTime")
+                self.simulateOptions["stepSize"] = attr.get("stepSize")
+                self.simulateOptions["tolerance"] = attr.get("tolerance")
+                self.simulateOptions["solver"] = attr.get("solver")
+                self.simulateOptions["outputFormat"] = attr.get("outputFormat")
 
-            for sv in rootCQ.iter('ScalarVariable'):
-                scalar={}
-                scalar["name"] = sv.get('name')
-                scalar["changeable"] = sv.get('isValueChangeable')
-                scalar["description"] = sv.get('description')
-                scalar["variability"] = sv.get('variability')
-                scalar["causality"] = sv.get('causality')
-                scalar["alias"] = sv.get('alias')
-                scalar["aliasvariable"] = sv.get('aliasVariable')
+            for sv in rootCQ.iter("ScalarVariable"):
+                scalar = {}
+                scalar["name"] = sv.get("name")
+                scalar["changeable"] = sv.get("isValueChangeable")
+                scalar["description"] = sv.get("description")
+                scalar["variability"] = sv.get("variability")
+                scalar["causality"] = sv.get("causality")
+                scalar["alias"] = sv.get("alias")
+                scalar["aliasvariable"] = sv.get("aliasVariable")
                 ch = list(sv)
                 start = None
                 min = None
                 max = None
                 for att in ch:
-                    start = att.get('start')
-                    min = att.get('min')
-                    max = att.get('max')
-                scalar["start"] =start
+                    start = att.get("start")
+                    min = att.get("min")
+                    max = att.get("max")
+                scalar["start"] = start
                 scalar["min"] = min
                 scalar["max"] = max
 
-                if(scalar["variability"]=="parameter"):
+                if scalar["variability"] == "parameter":
                     if scalar["name"] in self.overridevariables:
-                        self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
+                        self.paramlist[scalar["name"]] = self.overridevariables[
+                            scalar["name"]
+                        ]
                     else:
                         self.paramlist[scalar["name"]] = scalar["start"]
-                if(scalar["variability"]=="continuous"):
-                    self.continuouslist[scalar["name"]]=scalar["start"]
-                if(scalar["causality"]=="input"):
-                    self.inputlist[scalar["name"]]=scalar["start"]
-                if(scalar["causality"]=="output"):
-                    self.outputlist[scalar["name"]]=scalar["start"]
+                if scalar["variability"] == "continuous":
+                    self.continuouslist[scalar["name"]] = scalar["start"]
+                if scalar["causality"] == "input":
+                    self.inputlist[scalar["name"]] = scalar["start"]
+                if scalar["causality"] == "output":
+                    self.outputlist[scalar["name"]] = scalar["start"]
 
                 self.quantitiesList.append(scalar)
         else:
             print("Error: ! XML file not generated: " + self.xmlFile)
             return
-
 
     def getQuantities(self, names=None):  # 3
         """
@@ -1027,13 +1325,12 @@ class ModelicaSystem(object):
         >>> getQuantities("Name1")
         >>> getQuantities(["Name1","Name2"])
         """
-        if(names==None):
+        if names == None:
             return self.quantitiesList
-        elif(isinstance(names, str)):
+        elif isinstance(names, str):
             return [x for x in self.quantitiesList if x["name"] == names]
         elif isinstance(names, list):
-            return [x for y in names for x in self.quantitiesList if x["name"]==y]
-
+            return [x for y in names for x in self.quantitiesList if x["name"] == y]
 
     def getContinuous(self, names=None):  # 4
         """
@@ -1044,39 +1341,39 @@ class ModelicaSystem(object):
         >>> getContinuous(["Name1","Name2"])
         """
         if not self.simulationFlag:
-            if(names==None):
+            if names == None:
                 return self.continuouslist
-            elif(isinstance(names, str)):
-                return [self.continuouslist.get(names ,"NotExist")]
-            elif(isinstance(names, list)):
-                return ([self.continuouslist.get(x ,"NotExist") for x in names])
+            elif isinstance(names, str):
+                return [self.continuouslist.get(names, "NotExist")]
+            elif isinstance(names, list):
+                return [self.continuouslist.get(x, "NotExist") for x in names]
         else:
-            if(names==None):
+            if names == None:
                 for i in self.continuouslist:
                     try:
                         value = self.getSolutions(i)
-                        self.continuouslist[i]=value[0][-1]
+                        self.continuouslist[i] = value[0][-1]
                     except Exception:
-                        print(i,"could not be computed")
+                        print(i, "could not be computed")
                 return self.continuouslist
 
-            elif(isinstance(names, str)):
+            elif isinstance(names, str):
                 if names in self.continuouslist:
                     value = self.getSolutions(names)
-                    self.continuouslist[names]=value[0][-1]
+                    self.continuouslist[names] = value[0][-1]
                     return [self.continuouslist.get(names)]
                 else:
                     return (names, "  is not continuous")
 
-            elif(isinstance(names, list)):
-                valuelist=[]
+            elif isinstance(names, list):
+                valuelist = []
                 for i in names:
                     if i in self.continuouslist:
-                        value=self.getSolutions(i)
-                        self.continuouslist[i]=value[0][-1]
+                        value = self.getSolutions(i)
+                        self.continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        return (i,"  is not continuous")
+                        return (i, "  is not continuous")
                 return valuelist
 
     def getParameters(self, names=None):  # 5
@@ -1088,12 +1385,12 @@ class ModelicaSystem(object):
         >>> getParameters("Name1")
         >>> getParameters(["Name1","Name2"])
         """
-        if(names==None):
+        if names == None:
             return self.paramlist
-        elif(isinstance(names, str)):
-            return [self.paramlist.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.paramlist.get(x,"NotExist") for x in names])
+        elif isinstance(names, str):
+            return [self.paramlist.get(names, "NotExist")]
+        elif isinstance(names, list):
+            return [self.paramlist.get(x, "NotExist") for x in names]
 
     def getlinearParameters(self, names=None):  # 5
         """
@@ -1101,12 +1398,12 @@ class ModelicaSystem(object):
         If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
         Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
         """
-        if(names==0):
+        if names == 0:
             return self.linearparameters
-        elif(isinstance(names, str)):
-            return [self.linearparameters.get(names,"NotExist")]
+        elif isinstance(names, str):
+            return [self.linearparameters.get(names, "NotExist")]
         else:
-            return ([self.linearparameters.get(x,"NotExist") for x in names])
+            return [self.linearparameters.get(x, "NotExist") for x in names]
 
     def getInputs(self, names=None):  # 6
         """
@@ -1114,12 +1411,12 @@ class ModelicaSystem(object):
         If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
         Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
         """
-        if(names==None):
+        if names == None:
             return self.inputlist
-        elif(isinstance(names, str)):
-            return [self.inputlist.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.inputlist.get(x,"NotExist") for x in names])
+        elif isinstance(names, str):
+            return [self.inputlist.get(names, "NotExist")]
+        elif isinstance(names, list):
+            return [self.inputlist.get(x, "NotExist") for x in names]
 
     def getOutputs(self, names=None):  # 7
         """
@@ -1131,31 +1428,31 @@ class ModelicaSystem(object):
         >>> getOutputs(["Name1","Name2"])
         """
         if not self.simulationFlag:
-            if(names==None):
+            if names == None:
                 return self.outputlist
-            elif(isinstance(names, str)):
-                return [self.outputlist.get(names,"NotExist")]
+            elif isinstance(names, str):
+                return [self.outputlist.get(names, "NotExist")]
             else:
-                return ([self.outputlist.get(x,"NotExist") for x in names])
+                return [self.outputlist.get(x, "NotExist") for x in names]
         else:
-            if (names== None):
+            if names == None:
                 for i in self.outputlist:
                     value = self.getSolutions(i)
-                    self.outputlist[i]=value[0][-1]
+                    self.outputlist[i] = value[0][-1]
                 return self.outputlist
-            elif(isinstance(names, str)):
-                 if names in self.outputlist:
-                     value = self.getSolutions(names)
-                     self.outputlist[names]=value[0][-1]
-                     return [self.outputlist.get(names)]
-                 else:
-                     return (names, " is not Output")
-            elif(isinstance(names, list)):
-                valuelist=[]
+            elif isinstance(names, str):
+                if names in self.outputlist:
+                    value = self.getSolutions(names)
+                    self.outputlist[names] = value[0][-1]
+                    return [self.outputlist.get(names)]
+                else:
+                    return (names, " is not Output")
+            elif isinstance(names, list):
+                valuelist = []
                 for i in names:
                     if i in self.outputlist:
-                        value=self.getSolutions(i)
-                        self.outputlist[i]=value[0][-1]
+                        value = self.getSolutions(i)
+                        self.outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         return (i, "is not Output")
@@ -1170,12 +1467,12 @@ class ModelicaSystem(object):
         >>> getSimulationOptions("Name1")
         >>> getSimulationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if names == None:
             return self.simulateOptions
-        elif(isinstance(names, str)):
-            return [self.simulateOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.simulateOptions.get(x,"NotExist") for x in names])
+        elif isinstance(names, str):
+            return [self.simulateOptions.get(names, "NotExist")]
+        elif isinstance(names, list):
+            return [self.simulateOptions.get(x, "NotExist") for x in names]
 
     def getLinearizationOptions(self, names=None):  # 9
         """
@@ -1186,12 +1483,12 @@ class ModelicaSystem(object):
         >>> getLinearizationOptions("Name1")
         >>> getLinearizationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if names == None:
             return self.linearOptions
-        elif(isinstance(names, str)):
-            return [self.linearOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.linearOptions.get(x,"NotExist") for x in names])
+        elif isinstance(names, str):
+            return [self.linearOptions.get(names, "NotExist")]
+        elif isinstance(names, list):
+            return [self.linearOptions.get(x, "NotExist") for x in names]
 
     def getOptimizationOptions(self, names=None):  # 10
         """
@@ -1200,15 +1497,17 @@ class ModelicaSystem(object):
         >>> getOptimizationOptions("Name1")
         >>> getOptimizationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if names == None:
             return self.optimizeOptions
-        elif(isinstance(names, str)):
-            return [self.optimizeOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.optimizeOptions.get(x,"NotExist") for x in names])
+        elif isinstance(names, str):
+            return [self.optimizeOptions.get(names, "NotExist")]
+        elif isinstance(names, list):
+            return [self.optimizeOptions.get(x, "NotExist") for x in names]
 
     # to simulate or re-simulate model
-    def simulate(self, resultfile=None, simflags=None, verbose=True, timeout = None):  # 11
+    def simulate(
+        self, resultfile=None, simflags=None, verbose=True, timeout=None
+    ):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -1216,81 +1515,109 @@ class ModelicaSystem(object):
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
         """
-        if(resultfile is None):
-            r=""
-            self.resultfile = os.path.join(self.tempdir, self.modelName + "_res.mat").replace("\\", "/")
+        if resultfile is None:
+            r = ""
+            self.resultfile = os.path.join(
+                self.tempdir, self.modelName + "_res.mat"
+            ).replace("\\", "/")
         else:
-            r=" -r=" + resultfile
+            r = " -r=" + resultfile
             self.resultfile = resultfile
-        print(f'Simulation res path is: {self.resultfile}')
+        print(f"Simulation res path is: {self.resultfile}")
 
         # allow runtime simulation flags from user input
-        if(simflags is None):
-            simflags=""
+        if simflags is None:
+            simflags = ""
         else:
-            simflags=" " + simflags
+            simflags = " " + simflags
 
-        overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\", "/")
-        print('overrideFile:', overrideFile)
-        if (self.overridevariables or self.simoptionsoverride):
-            tmpdict=self.overridevariables.copy()
-            print('tmpdict:', tmpdict)
+        overrideFile = os.path.join(
+            self.tempdir, "{}.{}".format(self.modelName + "_override", "txt")
+        ).replace("\\", "/")
+        print("overrideFile:", overrideFile)
+        if self.overridevariables or self.simoptionsoverride:
+            tmpdict = self.overridevariables.copy()
+            print("tmpdict:", tmpdict)
             tmpdict.update(self.simoptionsoverride)
-            print('tmpdict:', tmpdict)
+            print("tmpdict:", tmpdict)
             # write to override file
             file = open(overrideFile, "w")
-            for (key, value) in tmpdict.items():
+            for key, value in tmpdict.items():
                 name = key + "=" + value + "\n"
                 file.write(name)
             file.close()
-            override =" -overrideFile=" + overrideFile
+            override = " -overrideFile=" + overrideFile
         else:
-            override =""
+            override = ""
 
-        if (self.inputFlag):  # if model has input quantities
+        if self.inputFlag:  # if model has input quantities
             for i in self.inputlist:
-                val=self.inputlist[i]
-                if(val==None):
-                    val=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
-                    self.inputlist[i]=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
+                val = self.inputlist[i]
+                if val == None:
+                    val = [
+                        (float(self.simulateOptions["startTime"]), 0.0),
+                        (float(self.simulateOptions["stopTime"]), 0.0),
+                    ]
+                    self.inputlist[i] = [
+                        (float(self.simulateOptions["startTime"]), 0.0),
+                        (float(self.simulateOptions["stopTime"]), 0.0),
+                    ]
                 if float(self.simulateOptions["startTime"]) != val[0][0]:
-                    print("!!! startTime not matched for Input ",i)
+                    print("!!! startTime not matched for Input ", i)
                     return
                 if float(self.simulateOptions["stopTime"]) != val[-1][0]:
-                    print("!!! stopTime not matched for Input ",i)
+                    print("!!! stopTime not matched for Input ", i)
                     return
                 if val[0][0] < float(self.simulateOptions["startTime"]):
-                    print('Input time value is less than simulation startTime for inputs', i)
+                    print(
+                        "Input time value is less than simulation startTime for inputs",
+                        i,
+                    )
                     return
             self.createCSVData()  # create csv file
-            csvinput=" -csvInput=" + self.csvFile
+            csvinput = " -csvInput=" + self.csvFile
         else:
-            csvinput=""
+            csvinput = ""
 
-        if (platform.system() == "Windows"):
-            getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+        if platform.system() == "Windows":
+            getExeFile = os.path.join(
+                self.tempdir, "{}.{}".format(self.modelName, "exe")
+            ).replace("\\", "/")
         else:
             getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
         currentDir = os.getcwd()
-        if (os.path.exists(getExeFile)):
+        if os.path.exists(getExeFile):
             cmd = getExeFile + override + csvinput + r + simflags
             os.chdir(self.tempdir)
-            if (platform.system() == "Windows"):
+            if platform.system() == "Windows":
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                dllPath = (
+                    os.path.join(omhome, "bin").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                )
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-                print('cmd:', cmd)
-                print('my_env', my_env)
+                print("cmd:", cmd)
+                print("my_env", my_env)
                 if not verbose:
-                    p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                    p = subprocess.Popen(
+                        cmd,
+                        env=my_env,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.STDOUT,
+                    )
                 else:
                     p = subprocess.Popen(cmd, env=my_env)
                 try:
                     p.wait(timeout=timeout)
                     p.terminate()
                 except:
-                    print('Process timed out!')
+                    print("Process timed out!")
                     p.terminate()
                     time.sleep(2)
 
@@ -1302,16 +1629,18 @@ class ModelicaSystem(object):
                         if p.poll() is None:  # If it's still running
                             print("Force-killing the process continued...")
                             subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)])
-                print('Simulation process return code: ', p.returncode)
+                print("Simulation process return code: ", p.returncode)
             else:
                 if not verbose:
-                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                    p = subprocess.Popen(
+                        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
+                    )
                 else:
                     p = subprocess.Popen(cmd)
             os.chdir(currentDir)
             self.simulationFlag = True
         else:
-            raise Exception("Error: Application file path not found: " +  getExeFile)
+            raise Exception("Error: Application file path not found: " + getExeFile)
 
     # to extract simulation results
     def getSolutions(self, varList=None, resultfile=None):  # 12
@@ -1326,54 +1655,56 @@ class ModelicaSystem(object):
         >>> getSolutions("Name1",resultfile=""c:/a.mat"")
         >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
         """
-        if (resultfile == None):
+        if resultfile == None:
             resFile = self.resultfile
         else:
             resFile = resultfile
 
         # check for result file exits
-        if (not os.path.exists(resFile)):
+        if not os.path.exists(resFile):
             print("Error: Result file does not exist " + resFile)
             return
-            #exit()
+            # exit()
         else:
-            resultVars = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
+            resultVars = self.getconn.sendExpression(
+                'readSimulationResultVars("' + resFile + '")'
+            )
             self.getconn.sendExpression("closeSimulationResultFile()")
-            if (varList == None):
+            if varList == None:
                 return resultVars
-            elif (isinstance(varList,str)):
-                if (varList not in resultVars and varList!="time"):
-                    print('!!! ', varList, ' does not exist\n')
+            elif isinstance(varList, str):
+                if varList not in resultVars and varList != "time":
+                    print("!!! ", varList, " does not exist\n")
                     return
-                exp = "readSimulationResult(\"" + resFile + '",{' + varList + "})"
+                exp = 'readSimulationResult("' + resFile + '",{' + varList + "})"
                 res = self.getconn.sendExpression(exp)
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
                 self.getconn.sendExpression(exp2)
                 return npRes
-            elif (isinstance(varList, list)):
-                #varList, = varList
+            elif isinstance(varList, list):
+                # varList, = varList
                 for v in varList:
                     if v == "time":
                         continue
                     if v not in resultVars:
-                        print('!!! ', v, ' does not exist\n')
+                        print("!!! ", v, " does not exist\n")
                         return
                 variables = ",".join(varList)
-                exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
+                exp = 'readSimulationResult("' + resFile + '",{' + variables + "})"
                 res = self.getconn.sendExpression(exp)
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
                 self.getconn.sendExpression(exp2)
                 return npRes
 
-    def strip_space(self,name):
-        if(isinstance(name,str)):
-            return name.replace(" ","")
-        elif(isinstance(name,list)):
-            return [x.replace(" ","") for x in name]
+    def strip_space(self, name):
+        if isinstance(name, str):
+            return name.replace(" ", "")
+        elif isinstance(name, list):
+            return [x.replace(" ", "") for x in name]
 
-    def setMethodHelper(self,args1,args2,args3,args4=None,verbose=None):
+    def setMethodHelper(self, args1, args2, args3, args4=None, verbose=None):
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
         args1 - string or list of string given by user
@@ -1381,36 +1712,40 @@ class ModelicaSystem(object):
         args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
         args4 - dict() which stores the new override variables list,
         """
-        if(isinstance(args1,str)):
-            args1=self.strip_space(args1)
-            value=args1.split("=")
+        if isinstance(args1, str):
+            args1 = self.strip_space(args1)
+            value = args1.split("=")
             if value[0] in args2:
-                if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
-                    args2[value[0]]=value[1]
-                    if(args4!=None):
-                        args4[value[0]]=value[1]
-                elif (args3 != "parameter"):
-                    args2[value[0]]=value[1]
-                    if(args4!=None):
-                        args4[value[0]]=value[1]
+                if args3 == "parameter" and self.isParameterChangeable(
+                    value[0], value[1], verbose
+                ):
+                    args2[value[0]] = value[1]
+                    if args4 != None:
+                        args4[value[0]] = value[1]
+                elif args3 != "parameter":
+                    args2[value[0]] = value[1]
+                    if args4 != None:
+                        args4[value[0]] = value[1]
             else:
-                print("\"" + value[0] + "\"" + " is not a" +  args3 + " variable")
+                print('"' + value[0] + '"' + " is not a" + args3 + " variable")
                 return
-        elif(isinstance(args1,list)):
-            args1=self.strip_space(args1)
+        elif isinstance(args1, list):
+            args1 = self.strip_space(args1)
             for var in args1:
-                value=var.split("=")
+                value = var.split("=")
                 if value[0] in args2:
-                    if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
-                        args2[value[0]]=value[1]
-                        if(args4!=None):
-                            args4[value[0]]=value[1]
-                    elif (args3 != "parameter"):
-                        args2[value[0]]=value[1]
-                        if(args4!=None):
-                            args4[value[0]]=value[1]
+                    if args3 == "parameter" and self.isParameterChangeable(
+                        value[0], value[1], verbose
+                    ):
+                        args2[value[0]] = value[1]
+                        if args4 != None:
+                            args4[value[0]] = value[1]
+                    elif args3 != "parameter":
+                        args2[value[0]] = value[1]
+                        if args4 != None:
+                            args4[value[0]] = value[1]
                 else:
-                    print("\"" + value[0] + "\"" + " is not a "+ args3 + " variable")
+                    print('"' + value[0] + '"' + " is not a " + args3 + " variable")
 
     def setContinuous(self, cvals):  # 13
         """
@@ -1420,7 +1755,9 @@ class ModelicaSystem(object):
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals,self.continuouslist,"continuous",self.overridevariables)
+        return self.setMethodHelper(
+            cvals, self.continuouslist, "continuous", self.overridevariables
+        )
 
     def setParameters(self, pvals, verbose=True):  # 14
         """
@@ -1430,13 +1767,28 @@ class ModelicaSystem(object):
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables, verbose)
+        return self.setMethodHelper(
+            pvals, self.paramlist, "parameter", self.overridevariables, verbose
+        )
 
     def isParameterChangeable(self, name, value, verbose):
         q = self.getQuantities(name)
-        if (q[0]["changeable"] == "false"):
+        if q[0]["changeable"] == "false":
             if verbose:
-                print("| info |  setParameters() failed : It is not possible to set the following signal " + "\"" + name + "\"" + ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue("+ self.modelName + ", " + name + ", " + value + "), parsed=false)" + " and rebuild the model using buildModel() API")
+                print(
+                    "| info |  setParameters() failed : It is not possible to set the following signal "
+                    + '"'
+                    + name
+                    + '"'
+                    + ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue("
+                    + self.modelName
+                    + ", "
+                    + name
+                    + ", "
+                    + value
+                    + "), parsed=false)"
+                    + " and rebuild the model using buildModel() API"
+                )
             return False
         return True
 
@@ -1448,7 +1800,12 @@ class ModelicaSystem(object):
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions,self.simulateOptions,"simulation-option",self.simoptionsoverride)
+        return self.setMethodHelper(
+            simOptions,
+            self.simulateOptions,
+            "simulation-option",
+            self.simoptionsoverride,
+        )
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
@@ -1458,7 +1815,9 @@ class ModelicaSystem(object):
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(linearizationOptions,self.linearOptions,"Linearization-option",None)
+        return self.setMethodHelper(
+            linearizationOptions, self.linearOptions, "Linearization-option", None
+        )
 
     def setOptimizationOptions(self, optimizationOptions):  # 17
         """
@@ -1468,7 +1827,9 @@ class ModelicaSystem(object):
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(optimizationOptions,self.optimizeOptions,"optimization-option",None)
+        return self.setMethodHelper(
+            optimizationOptions, self.optimizeOptions, "optimization-option", None
+        )
 
     def setInputs(self, name):  # 15
         """
@@ -1478,49 +1839,55 @@ class ModelicaSystem(object):
         >>> setInputs("Name=value")
         >>> setInputs(["Name1=value1","Name2=value2"])
         """
-        if (isinstance(name,str)):
-            name=self.strip_space(name)
-            value=name.split("=")
+        if isinstance(name, str):
+            name = self.strip_space(name)
+            value = name.split("=")
             if value[0] in self.inputlist:
-                tmpvalue=eval(value[1])
-                if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
-                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                elif(isinstance(tmpvalue,list)):
+                tmpvalue = eval(value[1])
+                if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                    self.inputlist[value[0]] = [
+                        (float(self.simulateOptions["startTime"]), float(value[1])),
+                        (float(self.simulateOptions["stopTime"]), float(value[1])),
+                    ]
+                elif isinstance(tmpvalue, list):
                     self.checkValidInputs(tmpvalue)
                     self.inputlist[value[0]] = tmpvalue
-                self.inputFlag=True
+                self.inputFlag = True
             else:
                 print(value[0], "!is not an input")
-        elif (isinstance(name,list)):
-            name=self.strip_space(name)
+        elif isinstance(name, list):
+            name = self.strip_space(name)
             for var in name:
-                value=var.split("=")
+                value = var.split("=")
                 if value[0] in self.inputlist:
-                    tmpvalue=eval(value[1])
-                    if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
-                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                    elif(isinstance(tmpvalue,list)):
+                    tmpvalue = eval(value[1])
+                    if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                        self.inputlist[value[0]] = [
+                            (float(self.simulateOptions["startTime"]), float(value[1])),
+                            (float(self.simulateOptions["stopTime"]), float(value[1])),
+                        ]
+                    elif isinstance(tmpvalue, list):
                         self.checkValidInputs(tmpvalue)
                         self.inputlist[value[0]] = tmpvalue
-                    self.inputFlag=True
+                    self.inputFlag = True
                 else:
                     print(value[0], "!is not an input")
 
-    def checkValidInputs(self,name):
+    def checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
-            print('Time value should be in increasing order')
+            print("Time value should be in increasing order")
             return
         for l in name:
             if isinstance(l, tuple):
-                #if l[0] < float(self.simValuesList[0]):
+                # if l[0] < float(self.simValuesList[0]):
                 if l[0] < float(self.simulateOptions["startTime"]):
-                    print('Input time value is less than simulation startTime')
+                    print("Input time value is less than simulation startTime")
                     return
                 if len(l) != 2:
-                    print('Value for ' + l + ' is in incorrect format!')
+                    print("Value for " + l + " is in incorrect format!")
                     return
             else:
-                print('Error!!! Value must be in tuple format')
+                print("Error!!! Value must be in tuple format")
                 return
 
     # To create csv file for inputs
@@ -1530,9 +1897,12 @@ class ModelicaSystem(object):
 
         ## check for NONE in input list and replace with proper data (e.g) [(startTime, 0.0), (stopTime, 0.0)]
         tmpinputlist = {}
-        for (key, value) in self.inputlist.items():
-            if (value is None):
-                tmpinputlist[key] = [(float(self.simulateOptions["startTime"]), 0.0),(float(self.simulateOptions["stopTime"]), 0.0)]
+        for key, value in self.inputlist.items():
+            if value is None:
+                tmpinputlist[key] = [
+                    (float(self.simulateOptions["startTime"]), 0.0),
+                    (float(self.simulateOptions["stopTime"]), 0.0),
+                ]
             else:
                 tmpinputlist[key] = value
 
@@ -1541,7 +1911,7 @@ class ModelicaSystem(object):
         for i in inp:
             cl = list()
             el = list()
-            for (t, x) in i:
+            for t, x in i:
                 cl.append(t)
             for i in cl:
                 if skip is True:
@@ -1562,7 +1932,7 @@ class ModelicaSystem(object):
             for i in inp:
                 for ttt in [tt[0] for tt in i]:
                     if t not in [tt[0] for tt in i]:
-                        i.append((t, '?'))
+                        i.append((t, "?"))
         inpSortedList = list()
         sortedList = list()
         for i in inp:
@@ -1570,14 +1940,14 @@ class ModelicaSystem(object):
             inpSortedList.append(sortedList)
         for i in inpSortedList:
             ind = 0
-            for (t, x) in i:
-                if x == '?':
+            for t, x in i:
+                if x == "?":
                     t1 = i[ind - 1][0]
                     u1 = i[ind - 1][1]
                     t2 = i[ind + 1][0]
                     u2 = i[ind + 1][1]
                     nex = 2
-                    while (u2 == '?'):
+                    while u2 == "?":
                         u2 = i[ind + nex][1]
                         t2 = i[ind + nex][0]
                         nex += 1
@@ -1588,7 +1958,7 @@ class ModelicaSystem(object):
         slSet = set(sl)
         for i in inpSortedList:
             tempTime = list()
-            for (t, x) in i:
+            for t, x in i:
                 tempTime.append(t)
             inSl = None
             inI = None
@@ -1609,30 +1979,46 @@ class ModelicaSystem(object):
         interpolated_inputs_all = list()
         for i in newInpList:
             templist = list()
-            for (t, x) in i:
+            for t, x in i:
                 templist.append(x)
             interpolated_inputs_all.append(templist)
 
-        name_ = 'time'
-        #name = ','.join(self.__getInputNames())
-        name=','.join(list(self.inputlist.keys()))
-        name = '{},{},{}'.format(name_, name, 'end')
+        name_ = "time"
+        # name = ','.join(self.__getInputNames())
+        name = ",".join(list(self.inputlist.keys()))
+        name = "{},{},{}".format(name_, name, "end")
 
-        a = ''
+        a = ""
         l = []
         l.append(name)
         for i in range(0, len(sl)):
-            a = ("%s,%s" % (str(float(sl[i])), ",".join(list(str(float(inppp[i])) for inppp in interpolated_inputs_all)))) + ',0'
+            a = (
+                "%s,%s"
+                % (
+                    str(float(sl[i])),
+                    ",".join(
+                        list(str(float(inppp[i])) for inppp in interpolated_inputs_all)
+                    ),
+                )
+            ) + ",0"
             l.append(a)
 
-        self.csvFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "csv")).replace("\\", "/")
+        self.csvFile = os.path.join(
+            self.tempdir, "{}.{}".format(self.modelName, "csv")
+        ).replace("\\", "/")
         with open(self.csvFile, "w") as f:
-            writer = csv.writer(f, delimiter='\n')
+            writer = csv.writer(f, delimiter="\n")
             writer.writerow(l)
         f.close()
 
     # to convert Modelica model to FMU
-    def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
+    def convertMo2Fmu(
+        self,
+        version="2.0",
+        fmuType="me_cs",
+        fileNamePrefix="<default>",
+        includeResources=True,
+    ):  # 19
         """
         This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
         with no arguments
@@ -1643,13 +2029,15 @@ class ModelicaSystem(object):
         """
 
         if fileNamePrefix == "<default>":
-          fileNamePrefix = self.modelName
+            fileNamePrefix = self.modelName
         if includeResources:
-          includeResourcesStr = "true"
+            includeResourcesStr = "true"
         else:
-          includeResourcesStr = "false"
-        properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(version, fmuType, fileNamePrefix,includeResourcesStr)
-        fmu = self.requestApi('buildModelFMU', self.modelName, properties)
+            includeResourcesStr = "false"
+        properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(
+            version, fmuType, fileNamePrefix, includeResourcesStr
+        )
+        fmu = self.requestApi("buildModelFMU", self.modelName, properties)
 
         ## report proper error message
         if not os.path.exists(fmu):
@@ -1666,7 +2054,7 @@ class ModelicaSystem(object):
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fileName = self.requestApi('importFMU', fmuName)
+        fileName = self.requestApi("importFMU", fmuName)
 
         ## report proper error message
         if not os.path.exists(fileName):
@@ -1683,18 +2071,20 @@ class ModelicaSystem(object):
         >>> optimize()
         """
         cName = self.modelName
-        properties = ','.join("%s=%s" % (key, val) for (key, val) in list(self.optimizeOptions.items()))
-        optimizeError = ''
-        self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
-        optimizeResult = self.requestApi('optimize', cName, properties)
-        optimizeError = self.requestApi('getErrorString')
+        properties = ",".join(
+            "%s=%s" % (key, val) for (key, val) in list(self.optimizeOptions.items())
+        )
+        optimizeError = ""
+        self.getconn.sendExpression('setCommandLineOptions("-g=Optimica")')
+        optimizeResult = self.requestApi("optimize", cName, properties)
+        optimizeError = self.requestApi("getErrorString")
         if optimizeError:
             print(optimizeError)
 
         return optimizeResult
 
     # to linearize model
-    def linearize(self, lintime = None, simflags= None):  # 22
+    def linearize(self, lintime=None, simflags=None):  # 22
         """
         This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
         only without any arguments
@@ -1703,20 +2093,24 @@ class ModelicaSystem(object):
         """
 
         if self.xmlFile is None:
-            return print("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
+            return print(
+                "Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first"
+            )
 
-        overrideLinearFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
+        overrideLinearFile = os.path.join(
+            self.tempdir, "{}.{}".format(self.modelName + "_override_linear", "txt")
+        ).replace("\\", "/")
 
         file = open(overrideLinearFile, "w")
-        for (key, value) in self.overridevariables.items():
+        for key, value in self.overridevariables.items():
             name = key + "=" + value + "\n"
             file.write(name)
-        for (key, value) in self.linearOptions.items():
+        for key, value in self.linearOptions.items():
             name = key + "=" + str(value) + "\n"
             file.write(name)
         file.close()
 
-        override =" -overrideFile=" + overrideLinearFile
+        override = " -overrideFile=" + overrideLinearFile
         # print(override)
 
         if self.inputFlag:
@@ -1726,16 +2120,18 @@ class ModelicaSystem(object):
                 if tupleList is not None:
                     for l in tupleList:
                         if l[0] < float(self.simulateOptions["startTime"]):
-                            print('Input time value is less than simulation startTime')
+                            print("Input time value is less than simulation startTime")
                             return
             self.createCSVData()
-            csvinput =" -csvInput=" + self.csvFile
+            csvinput = " -csvInput=" + self.csvFile
         else:
-            csvinput=""
+            csvinput = ""
 
         ## prepare the linearization runtime command
-        if (platform.system() == "Windows"):
-            getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+        if platform.system() == "Windows":
+            getExeFile = os.path.join(
+                self.tempdir, "{}.{}".format(self.modelName, "exe")
+            ).replace("\\", "/")
         else:
             getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
 
@@ -1748,13 +2144,21 @@ class ModelicaSystem(object):
             simflags = ""
 
         currentDir = os.getcwd()
-        if (os.path.exists(getExeFile)):
+        if os.path.exists(getExeFile):
             cmd = getExeFile + linruntime + override + csvinput + simflags
             # print(cmd)
             os.chdir(self.tempdir)
-            if (platform.system() == "Windows"):
+            if platform.system() == "Windows":
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                dllPath = (
+                    os.path.join(omhome, "bin").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/")
+                    + os.pathsep
+                    + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                )
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
                 p = subprocess.Popen(cmd, env=my_env)
@@ -1764,14 +2168,16 @@ class ModelicaSystem(object):
                 os.system(cmd)
         else:
             os.chdir(currentDir)
-            raise Exception("Error: Application file path not found: " +  getExeFile)
+            raise Exception("Error: Application file path not found: " + getExeFile)
 
         # code to get the matrix and linear inputs, outputs and states
-        linearFile = os.path.join(self.tempdir, "linearized_model.py").replace("\\","/")
+        linearFile = os.path.join(self.tempdir, "linearized_model.py").replace(
+            "\\", "/"
+        )
 
         # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
         if not os.path.exists(linearFile):
-            linearFile = '{}_{}.{}'.format('linear', self.modelName, 'py')
+            linearFile = "{}_{}.{}".format("linear", self.modelName, "py")
 
         if os.path.exists(linearFile):
             # this function is called from the generated python code linearized_model.py at runtime,
@@ -1781,6 +2187,7 @@ class ModelicaSystem(object):
                 ## https://github.com/OpenModelica/OMPython/issues/196
                 sys.path.append(os.path.dirname(linearFile))
                 from linearized_model import linearized_model
+
                 result = linearized_model()
                 (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
                 self.linearinputs = inputVars
@@ -1790,12 +2197,20 @@ class ModelicaSystem(object):
                 os.chdir(currentDir)
             except:
                 os.chdir(currentDir)
-                raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
+                raise Exception(
+                    "ModuleNotFoundError: No module named 'linearized_model'"
+                )
         else:
             errormsg = self.getconn.sendExpression("getErrorString()")
             os.chdir(currentDir)
-            return print("Linearization failed: ", "\"" , linearFile,"\"" ," not found \n", errormsg)
-
+            return print(
+                "Linearization failed: ",
+                '"',
+                linearFile,
+                '"',
+                " not found \n",
+                errormsg,
+            )
 
     def getLinearInputs(self):
         """
@@ -1821,39 +2236,42 @@ class ModelicaSystem(object):
         """
         return self.linearstates
 
-def FindBestOMCSession(*args, **kwargs):
-  """
-  Analyzes the OMC executable version string to find a suitable selection
-  of CORBA or ZMQ, as well as older flags to launch the executable (such
-  as +d=interactiveCorba for RML-based OMC).
 
-  This is mainly useful if you are testing old OpenModelica versions using
-  the latest OMPython.
-  """
-  base = OMCSessionHelper()
-  omc = base._get_omc_path()
-  versionOK = False
-  for cmd in ["--version", "+version"]:
+def FindBestOMCSession(*args, **kwargs):
+    """
+    Analyzes the OMC executable version string to find a suitable selection
+    of CORBA or ZMQ, as well as older flags to launch the executable (such
+    as +d=interactiveCorba for RML-based OMC).
+
+    This is mainly useful if you are testing old OpenModelica versions using
+    the latest OMPython.
+    """
+    base = OMCSessionHelper()
+    omc = base._get_omc_path()
+    versionOK = False
+    for cmd in ["--version", "+version"]:
+        try:
+            v = str(subprocess.check_output([omc, cmd], stderr=subprocess.STDOUT))
+            versionOK = True
+            break
+        except subprocess.CalledProcessError:
+            pass
+    if not versionOK:
+        raise Exception(
+            "Failed to use omc --version or omc +version. Is omc on the PATH?"
+        )
+    zmq = False
+    v = v.strip().split("-")[0].split("~")[0].strip()
+    a = re.search(r"v?([0-9]+)[.]([0-9]+)[.][0-9]+", v)
     try:
-      v = str(subprocess.check_output([omc, cmd], stderr=subprocess.STDOUT))
-      versionOK = True
-      break
-    except subprocess.CalledProcessError:
-      pass
-  if not versionOK:
-    raise Exception("Failed to use omc --version or omc +version. Is omc on the PATH?")
-  zmq = False
-  v = v.strip().split("-")[0].split("~")[0].strip()
-  a = re.search(r"v?([0-9]+)[.]([0-9]+)[.][0-9]+", v)
-  try:
-    major = int(a.group(1))
-    minor = int(a.group(2))
-    if major > 1 or (major==1 and minor >= 12):
-      zmq = True
-  except:
-    pass
-  if zmq:
-    return OMCSessionZMQ(*args, **kwargs)
-  if cmd == "+version":
-    return OMCSession(*args, serverFlag="+d=interactiveCorba", **kwargs)
-  return OMCSession(*args, serverFlag="-d=interactiveCorba", **kwargs)
+        major = int(a.group(1))
+        minor = int(a.group(2))
+        if major > 1 or (major == 1 and minor >= 12):
+            zmq = True
+    except:
+        pass
+    if zmq:
+        return OMCSessionZMQ(*args, **kwargs)
+    if cmd == "+version":
+        return OMCSession(*args, serverFlag="+d=interactiveCorba", **kwargs)
+    return OMCSession(*args, serverFlag="-d=interactiveCorba", **kwargs)

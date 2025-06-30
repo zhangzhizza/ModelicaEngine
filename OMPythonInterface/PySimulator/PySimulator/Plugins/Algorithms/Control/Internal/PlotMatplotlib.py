@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2014 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,13 +21,13 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
-'''
+"""
 Created on 09.04.2012
 
 @author: otter
-'''
+"""
 
 import matplotlib.pyplot as plt
 import numpy
@@ -58,10 +58,14 @@ def plotBode(lti, n=200, f_range=None, f_logspace=True, u_indices=None, y_indice
                    the outputs y[0], y[3], y[4].
     """
     # Normalize indices
-    (ui, yi) = Misc.normalizeIndices(lti.nu, lti.ny, u_indices=u_indices, y_indices=y_indices)
+    (ui, yi) = Misc.normalizeIndices(
+        lti.nu, lti.ny, u_indices=u_indices, y_indices=y_indices
+    )
 
     # Compute frequency response
-    (f, Y) = lti.frequencyResponse(n=n, f_range=f_range, f_logspace=f_logspace, u_indices=ui, y_indices=yi)
+    (f, Y) = lti.frequencyResponse(
+        n=n, f_range=f_range, f_logspace=f_logspace, u_indices=ui, y_indices=yi
+    )
 
     # Get labels
     (u_names, u_units, y_names, y_units) = lti.getLabels(u_indices=ui, y_indices=yi)
@@ -71,8 +75,8 @@ def plotBode(lti, n=200, f_range=None, f_logspace=True, u_indices=None, y_indice
     nu = len(ui)
     ny = len(yi)
     k = 0
-    for (ii, i) in enumerate(yi):
-        for (jj, j) in enumerate(ui):
+    for ii, i in enumerate(yi):
+        for jj, j in enumerate(ui):
             # Compute amplitude and phase
             y = Y[i][j]
             y_A = numpy.abs(y)
@@ -99,7 +103,7 @@ def plotBode(lti, n=200, f_range=None, f_logspace=True, u_indices=None, y_indice
                 else:
                     plt.title("from " + u_names[j] + " [" + u_units[j] + "]")
 
-        for (jj, j) in enumerate(ui):
+        for jj, j in enumerate(ui):
             # Plot phase
             k = k + 1
             plt.subplot(2 * ny, nu, k)
@@ -108,8 +112,10 @@ def plotBode(lti, n=200, f_range=None, f_logspace=True, u_indices=None, y_indice
             else:
                 plt.plot(f, y_A)
             plt.grid(True, which="both")
-            if ii == ny - 1: plt.xlabel("frequency [Hz]")
-            if jj == 0: plt.ylabel("phase(" + y_names[i] + ") [deg]")
+            if ii == ny - 1:
+                plt.xlabel("frequency [Hz]")
+            if jj == 0:
+                plt.ylabel("phase(" + y_names[i] + ") [deg]")
     plt.show()
 
 
@@ -149,13 +155,23 @@ if __name__ == "__main__":
     # print("lti1 = " + str(lti1))
     # plotBode(lti1)
 
-    lti2 = lti.LTI(ss=([[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-                     [[11, 12], [21, 22], [31, 32]],
-                     [[11, 12, 13], [21, 22, 23]],
-                    ),
-                 info="Linearized system of a drive train",
-                 info_u=(["u1", "u2"], ["N", "Nm"] , ["Force acting on flange_a", "Torque acting on flange_b"]),
-                 info_y=(["y1", "y2"], ["m", "rad"], ["Position of mass", "Angle of inertia"]),
-                 info_x=(["x1", "x2", "x3"], ["V", "A", "W"], ["Voltage of source", "Current of source", "Active power"])
-              )
+    lti2 = lti.LTI(
+        ss=(
+            [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            [[11, 12], [21, 22], [31, 32]],
+            [[11, 12, 13], [21, 22, 23]],
+        ),
+        info="Linearized system of a drive train",
+        info_u=(
+            ["u1", "u2"],
+            ["N", "Nm"],
+            ["Force acting on flange_a", "Torque acting on flange_b"],
+        ),
+        info_y=(["y1", "y2"], ["m", "rad"], ["Position of mass", "Angle of inertia"]),
+        info_x=(
+            ["x1", "x2", "x3"],
+            ["V", "A", "W"],
+            ["Voltage of source", "Current of source", "Active power"],
+        ),
+    )
     plotBode(lti2)

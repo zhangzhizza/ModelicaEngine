@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2015 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,36 +21,37 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
 import csv, numpy, collections
 from .. import IntegrationResults
 
 
-fileExtension = 'csv'
-description = 'Comma Separated Values for FMI Compliance Checker'
+fileExtension = "csv"
+description = "Comma Separated Values for FMI Compliance Checker"
 
 
 class Results(IntegrationResults.Results):
-    ''' Class for hosting simulation results in csv format:
-        First row: Names of variables
-        First column: Independent variable, e.g. Time
-        Example:
+    """Class for hosting simulation results in csv format:
+    First row: Names of variables
+    First column: Independent variable, e.g. Time
+    Example:
 
-        Time,Mechanical.Inertia.J,y,Mechnical.Inertia.w
-        0.0,20.0,3.6820238572822689e-4,0.0
-        0.1,20.0,6.7829872398723383e-4,0.7293789273984797e-2
-        0.2,20.0,4.0290389058209473e-3,0.7823794579232536e-1
+    Time,Mechanical.Inertia.J,y,Mechnical.Inertia.w
+    0.0,20.0,3.6820238572822689e-4,0.0
+    0.1,20.0,6.7829872398723383e-4,0.7293789273984797e-2
+    0.2,20.0,4.0290389058209473e-3,0.7823794579232536e-1
 
-    '''
+    """
+
     def __init__(self, fileName):
         IntegrationResults.Results.__init__(self)
 
         self.fileName = fileName  # File name of result file
-        ''' Load file
-        '''
+        """ Load file
+        """
 
-        '''
+        """
         csvfile = open(self.fileName, 'rb')
         reader = csv.reader(csvfile, delimiter=';')
         self._name = reader.next() # first row contains the variable names
@@ -62,13 +63,13 @@ class Results(IntegrationResults.Results):
             i=i+1
 
         csvfile.close()
-        '''
-        csvfile = open(self.fileName, 'rb')
+        """
+        csvfile = open(self.fileName, "rb")
         dialect = csv.Sniffer().sniff(csvfile.readline())
         csvfile.seek(0)
         reader = csv.reader(csvfile, dialect)
         self._name = reader.next()  # first row contains the variable names
-        self._info = len(self._name) * ['']
+        self._info = len(self._name) * [""]
         self._filterName()
         data = numpy.loadtxt(csvfile, delimiter=dialect.delimiter)
 
@@ -76,28 +77,25 @@ class Results(IntegrationResults.Results):
         self.timeSeries.append(IntegrationResults.TimeSeries(t, data, "linear"))
         self.nTimeSeries = len(self.timeSeries)
 
-
         csvfile.close()
 
         self.isAvailable = True  # Shows, if there is a file available to be read
-
 
     def _filterName(self):
 
         for i in xrange(len(self._name)):
             x = self._name[i]
-            k = x.find('=')
+            k = x.find("=")
             if k > -1:  # Skip the parts behind "="
                 self._info[i] = x[k:]
                 x = x[:k]
 
             if len(x) > 5:  # Convert der(a.b.c.d) to a.b.c.der(d)
-                if x[:4] == 'der(':
-                    k = x.rfind('.')
+                if x[:4] == "der(":
+                    k = x.rfind(".")
                     if k > -1:
-                        x = x[4:k] + '.der(' + x[k + 1:]
+                        x = x[4:k] + ".der(" + x[k + 1 :]
             self._name[i] = x
-
 
     def readData(self, variableName):
         nameIndex = self._name.index(variableName)
@@ -114,7 +112,6 @@ class Results(IntegrationResults.Results):
             return None
         return self.timeSeries[0].data[:, nameIndex]
 
-
     def getVariables(self):
         # Generate the dict
         variables = dict()
@@ -122,25 +119,22 @@ class Results(IntegrationResults.Results):
         # Fill the values of the dict
         for i in xrange(len(self._name)):
             name = self._name[i]
-            variability = 'continuous'
+            variability = "continuous"
             value = None
             infos = collections.OrderedDict()
-            infos['Variability'] = variability
-            if not self._info[i] == '':
-                infos['Description'] = self._info[i]
+            infos["Variability"] = variability
+            if not self._info[i] == "":
+                infos["Description"] = self._info[i]
             unit = None
             seriesIndex = 0
             column = i
             sign = 1
-            variables[name] = IntegrationResults.ResultVariable(value, unit, variability, infos, seriesIndex, column, sign)
+            variables[name] = IntegrationResults.ResultVariable(
+                value, unit, variability, infos, seriesIndex, column, sign
+            )
 
         return variables
 
     def getFileInfos(self):
         # No relevant file infos stored in a csv result file
         return dict()
-
-
-
-
-

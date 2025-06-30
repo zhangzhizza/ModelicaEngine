@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2014 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,18 +21,19 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
-'''
+"""
 Created on 05.04.2012
 
 @author: otter
-'''
+"""
 
 import scipy.linalg
 import numpy.linalg
 import warnings
 import ZerosAndPoles
+
 
 class StateSpace:
     """
@@ -52,6 +53,7 @@ class StateSpace:
        evaluate_at_s
        to_zpk
     """
+
     def __init__(self, A, B=None, C=None, D=None):
         """
         Initialize a StateSpace object
@@ -85,18 +87,27 @@ class StateSpace:
         if B != None:
             self.B = numpy.array(B, dtype=numpy.float64)
             if len(self.B.shape) < 1 or len(self.B.shape) > 2:
-                raise ValueError("B (shape=%s) must have either 1 or 2 dimensions" % B.shape)
+                raise ValueError(
+                    "B (shape=%s) must have either 1 or 2 dimensions" % B.shape
+                )
             if len(self.B.shape) == 1:
-                self.B = numpy.transpose(numpy.array(self.B, dtype=numpy.float64, ndmin=2))
+                self.B = numpy.transpose(
+                    numpy.array(self.B, dtype=numpy.float64, ndmin=2)
+                )
             if self.B.shape[0] != self.nx:
-                raise ValueError("B (shape=%s) must have the same row size as A (shape=%s)" % (self.B.shape, self.A.shape))
+                raise ValueError(
+                    "B (shape=%s) must have the same row size as A (shape=%s)"
+                    % (self.B.shape, self.A.shape)
+                )
             self.nu = self.B.shape[1]
 
         # Store and check C
         if C != None:
             self.C = numpy.array(C, dtype=numpy.float64, ndmin=2)
             if len(self.C.shape) > 2:
-                raise ValueError("C (shape=%s) must have either 1 or 2 dimensions" % C.shape)
+                raise ValueError(
+                    "C (shape=%s) must have either 1 or 2 dimensions" % C.shape
+                )
             if self.C.shape[1] != self.nx:
                 raise ValueError("C must have the same column size as A")
             self.ny = self.C.shape[0]
@@ -112,7 +123,6 @@ class StateSpace:
             if self.ny > 0 and self.nu > 0:
                 self.D = numpy.zeros((self.ny, self.nu), order="F")
 
-
     def __str__(self):
         """
         String representation of a StateSpace object
@@ -125,7 +135,6 @@ class StateSpace:
         s += "  D =\n" + str(self.D) + "\n"
         return s
 
-
     def eig(self, left=False, right=False):
         """
         Return the eigen values and optionally the left and/or right eigen vectors
@@ -136,25 +145,42 @@ class StateSpace:
         else:
             return scipy.linalg.eig(self.A, left=left, right=right)
 
-
     def zeros_ij(self, ui=0, yj=0):
         """
         Return the invariant zeros from input u[ui] to output y[yj]
         """
         # Check the input arguments
         if ui < 0 or ui >= self.nu:
-            raise ValueError("Argument ui (={}) must be in the range 0 <= ui < {}".format(ui, self.nu))
+            raise ValueError(
+                "Argument ui (={}) must be in the range 0 <= ui < {}".format(
+                    ui, self.nu
+                )
+            )
         if yj < 0 or yj >= self.ny:
-            raise ValueError("Argument yj (={}) must be in the range 0 <= yj < {}".format(yj, self.ny))
+            raise ValueError(
+                "Argument yj (={}) must be in the range 0 <= yj < {}".format(
+                    yj, self.ny
+                )
+            )
 
         # The zeros of a SISO system are the generalized eigenvalues of
         #   |I 0|     | A  B|
         #   |   |*s - |     | = Bgen*s - Agen
         #   |0 0|     | C  D|
-        Bgen = numpy.vstack((numpy.hstack((numpy.eye(self.nx), numpy.zeros((self.nx, 1)))),
-                              numpy.zeros((1, self.nx + 1))))
-        Agen = numpy.vstack((numpy.hstack((self.A, self.B[:, ui:ui + 1])),
-                              numpy.hstack((self.C[yj:yj + 1, :], self.D[yj:yj + 1, ui:ui + 1]))))
+        Bgen = numpy.vstack(
+            (
+                numpy.hstack((numpy.eye(self.nx), numpy.zeros((self.nx, 1)))),
+                numpy.zeros((1, self.nx + 1)),
+            )
+        )
+        Agen = numpy.vstack(
+            (
+                numpy.hstack((self.A, self.B[:, ui : ui + 1])),
+                numpy.hstack(
+                    (self.C[yj : yj + 1, :], self.D[yj : yj + 1, ui : ui + 1])
+                ),
+            )
+        )
 
         # When calculating the zeros, a warning is printed for zeros at infinity
         # since a division by zero occurs resulting in a zero of "nan+nanj".
@@ -164,8 +190,7 @@ class StateSpace:
             z = scipy.linalg.eigvals(Agen, Bgen)
 
         # Remove all zeros at infinity
-        return z[ numpy.isfinite(z) ]
-
+        return z[numpy.isfinite(z)]
 
     def evaluate_at_s(self, s_k):
         """
@@ -198,30 +223,37 @@ class StateSpace:
            If s_k is complex, a linear system with complex coefficients is solved.
         """
         if self.nu == 0 or self.ny == 0:
-            raise ValueError("evaluate_at_s requires at least one input and one output of the StateSpace system\n" +
-                             "but nu = %s, ny = %d" % (self.nu, self.ny))
+            raise ValueError(
+                "evaluate_at_s requires at least one input and one output of the StateSpace system\n"
+                + "but nu = %s, ny = %d" % (self.nu, self.ny)
+            )
         elif self.nx == 0:
             return self.D
         else:
-            K = self.D + numpy.dot(self.C, numpy.linalg.solve(s_k * numpy.eye(self.nx) - self.A, self.B))
+            K = self.D + numpy.dot(
+                self.C, numpy.linalg.solve(s_k * numpy.eye(self.nx) - self.A, self.B)
+            )
             return K
-
 
     def to_zpk(self):
         """
         Transform StateSpace object to a matrix of SISO ZerosAndPoles objects
         """
         # Check whether already computed
-        if self.zpk != None: return self.zpk
+        if self.zpk != None:
+            return self.zpk
 
         # Compute eigenvalues
         p = self.eig()
 
         # Generate a matrix of zpk systems with k=1 each
         ZPK = ZerosAndPoles.ZerosAndPolesSISO
-        zpk = ZerosAndPoles.ZerosAndPoles([[ZPK((1.0, self.zeros_ij(i, j), p))
-                                             for i in xrange(0, self.nu)]
-                                             for j in xrange(0, self.ny)])
+        zpk = ZerosAndPoles.ZerosAndPoles(
+            [
+                [ZPK((1.0, self.zeros_ij(i, j), p)) for i in xrange(0, self.nu)]
+                for j in xrange(0, self.ny)
+            ]
+        )
 
         # Select a real "s_k" that is neither an eigenvalue nor a zero.
         re_max = p.real.max()
@@ -244,9 +276,11 @@ if __name__ == "__main__":
     ss1 = StateSpace([[1, 2], [3, 4]], [1, 3], [3, 4], [4])
     print("ss1 =\n" + str(ss1))
 
-    ss2 = StateSpace(A=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-                    B=[[11, 12], [21, 22], [31, 32]],
-                    C=[[11, 12, 13], [21, 22, 23], [31, 32, 33]])
+    ss2 = StateSpace(
+        A=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        B=[[11, 12], [21, 22], [31, 32]],
+        C=[[11, 12, 13], [21, 22, 23], [31, 32, 33]],
+    )
     print("ss2 =\n" + str(ss2))
 
     # The data of a StateSpace object is defined as read-only
@@ -254,19 +288,19 @@ if __name__ == "__main__":
     A = ss1.A
     # ss1.nx = 3    # Raises an exceptions, since attribute is defined as read only
 
-
     print("\nCalculate eigen values and right eigen vectors:")
-    ss3 = StateSpace([[1, 2, 3],
-                      [4, -5, -6],
-                      [7, 8, 5]])
+    ss3 = StateSpace([[1, 2, 3], [4, -5, -6], [7, 8, 5]])
     print("ss3.eig() = " + str(ss3.eig()))
     print("ss3.eig(right=True) = " + str(ss3.eig(right=True)))
 
     print("\nCalculate invariant zeros:")
     print("ss1.zeros_ij() = " + str(ss1.zeros_ij()))
-    ss4 = StateSpace([[1, 2, 3],
-                      [4, -5, -6],
-                      [7, 8, 5]], B=numpy.ones((3, 1)), C=numpy.ones((1, 3)), D=[[0]])
+    ss4 = StateSpace(
+        [[1, 2, 3], [4, -5, -6], [7, 8, 5]],
+        B=numpy.ones((3, 1)),
+        C=numpy.ones((1, 3)),
+        D=[[0]],
+    )
     z = ss4.zeros_ij()
     print("ss4.zeros_ij() = " + str(z))
 
@@ -282,5 +316,3 @@ if __name__ == "__main__":
     # Check transformation to zpk
     zpk2 = ss2.to_zpk()
     print("zpk2 =" + str(zpk2))
-
-

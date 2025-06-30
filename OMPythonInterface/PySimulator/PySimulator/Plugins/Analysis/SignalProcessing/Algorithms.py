@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2014 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,7 +21,7 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
 """
      Algorithms for the signal processing plug-in
@@ -31,6 +31,7 @@ import scipy.interpolate
 import math
 import numpy
 import numpy.fft
+
 
 def arithmeticMean(t, y):
     """
@@ -108,7 +109,18 @@ def fft(t, y, N):
     # Compute number of frequency points nf and frequency f
     nf = N // 2 + 1
     f = (fs / N) * numpy.linspace(0, nf - 1, nf)  # highest frequency f[-1] = fs/2
-    print("T=" + str(t[-1]) + ", N=" + str(N) + ", Ts=" + str(Ts) + ", fs=" + str(fs) + ", nf=" + str(nf))
+    print(
+        "T="
+        + str(t[-1])
+        + ", N="
+        + str(N)
+        + ", Ts="
+        + str(Ts)
+        + ", fs="
+        + str(fs)
+        + ", nf="
+        + str(nf)
+    )
 
     # Compute mean value yMean and subtract it from y
     yMean = arithmeticMean(t, y)
@@ -128,6 +140,7 @@ def fft(t, y, N):
     A = abs(ye_fft)
     return (f, A)
 
+
 if __name__ == "__main__":
     # Test fft
     f1 = 5.0  # Frequency of signal 1 in [Hz]
@@ -144,6 +157,7 @@ if __name__ == "__main__":
 
     # Plot time signals
     import matplotlib.pyplot as plt
+
     plt.figure()
     plt.plot(t, y)
     plt.grid(True, which="both")
@@ -160,8 +174,9 @@ if __name__ == "__main__":
 
     # Determine distance df between two frequency points
     df = (f[-1] - f[0]) / (len(f) - 1)
-    print("1/fmax = " + str(1 / f[-1]) + ", len(f) = " + str(len(f)) +
-          ", T = " + str(T))
+    print(
+        "1/fmax = " + str(1 / f[-1]) + ", len(f) = " + str(len(f)) + ", T = " + str(T)
+    )
     wf = 0.8 * df / 2
     print("fmax = " + str(f[-1]) + ", df = " + str(df) + ", df2 = " + str(1 / T))
     print("nf = " + str(len(f)))
@@ -207,4 +222,3 @@ if __name__ == "__main__":
     plt.xlabel("Frequency [Hz]")
     plt.ylabel("Amplitude")
     plt.show()
-

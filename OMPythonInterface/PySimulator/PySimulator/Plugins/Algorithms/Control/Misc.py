@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Copyright (C) 2011-2014 German Aerospace Center DLR
 (Deutsches Zentrum fuer Luft- und Raumfahrt e.V.),
 Institute of System Dynamics and Control
@@ -21,16 +21,17 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with PySimulator. If not, see www.gnu.org/licenses.
-'''
+"""
 
-'''
+"""
 Created on 08.04.2012
 
 @author: otter
-'''
+"""
 
 import numpy
 import math
+
 
 def to_Hz(w):
     """
@@ -101,7 +102,7 @@ def continuousAngle(c):
     c_old = 0.0
     pi = numpy.pi
     pi2 = 2 * numpy.pi
-    for (i, phi) in enumerate(c_phi):
+    for i, phi in enumerate(c_phi):
         aux = pi2 * math.floor((abs(phi - c_old) + pi) / pi2)
         if c_old > aux:
             c_phi[i] = phi + aux
@@ -135,9 +136,9 @@ def frequencyRange(zeros, poles, f_range=None):
     # f_range == None: Determine frequency range from zeros and poles
     eps = 1.0e-6
     z_abs = abs(zeros)
-    z_abs = z_abs[ z_abs > eps ]
+    z_abs = z_abs[z_abs > eps]
     p_abs = abs(poles)
-    p_abs = p_abs[ p_abs > eps ]
+    p_abs = p_abs[p_abs > eps]
     if len(z_abs) > 0:
         if len(p_abs) > 0:
             w_min = max(eps, min(z_abs.min(), p_abs.min()))
@@ -236,8 +237,6 @@ def getFloatMatrix(A, Aname, copy=True):
         # more than 2 dimensions, error
         raise ValueError("Array {} has more than 2 dimensions".format(Aname))
     return A2
-
-
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 import logging
 
-class Logger():
-    
+
+class Logger:
+
     def getLogger(self, name, level, formatter):
         logger = logging.getLogger(name)
         consoleHandler = logging.StreamHandler()

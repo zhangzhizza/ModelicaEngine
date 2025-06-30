@@ -1,35 +1,35 @@
 # -*- coding: utf-8 -*-
 """
 
- This file is part of OpenModelica.
+This file is part of OpenModelica.
 
- Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
- c/o Linköpings universitet, Department of Computer and Information Science,
- SE-58183 Linköping, Sweden.
+Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
+c/o Linköpings universitet, Department of Computer and Information Science,
+SE-58183 Linköping, Sweden.
 
- All rights reserved.
+All rights reserved.
 
- THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE BSD NEW LICENSE OR THE
- GPL VERSION 3 LICENSE OR THE OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2.
- ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
- RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
- ACCORDING TO RECIPIENTS CHOICE.
+THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE BSD NEW LICENSE OR THE
+GPL VERSION 3 LICENSE OR THE OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2.
+ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
+RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
+ACCORDING TO RECIPIENTS CHOICE.
 
- The OpenModelica software and the OSMC (Open Source Modelica Consortium)
- Public License (OSMC-PL) are obtained from OSMC, either from the above
- address, from the URLs: http://www.openmodelica.org or
- http://www.ida.liu.se/projects/OpenModelica, and in the OpenModelica
- distribution. GNU version 3 is obtained from:
- http://www.gnu.org/copyleft/gpl.html. The New BSD License is obtained from:
- http://www.opensource.org/licenses/BSD-3-Clause.
+The OpenModelica software and the OSMC (Open Source Modelica Consortium)
+Public License (OSMC-PL) are obtained from OSMC, either from the above
+address, from the URLs: http://www.openmodelica.org or
+http://www.ida.liu.se/projects/OpenModelica, and in the OpenModelica
+distribution. GNU version 3 is obtained from:
+http://www.gnu.org/copyleft/gpl.html. The New BSD License is obtained from:
+http://www.opensource.org/licenses/BSD-3-Clause.
 
- This program is distributed WITHOUT ANY WARRANTY; without even the implied
- warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
- EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
- CONDITIONS OF OSMC-PL.
+This program is distributed WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
+EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
+CONDITIONS OF OSMC-PL.
 
- Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
- Version: 1.0
+Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
+Version: 1.0
 """
 
 from __future__ import absolute_import
@@ -44,14 +44,14 @@ result = dict()
 inner_sets = []
 next_set_list = []
 next_set = []
-next_set.append('')
+next_set.append("")
 
 
 def bool_from_string(string):
-    """Attempt conversion of string to a boolean """
-    if string in {'true', 'True', 'TRUE'}:
+    """Attempt conversion of string to a boolean"""
+    if string in {"true", "True", "TRUE"}:
         return True
-    elif string in {'false', 'False', 'FALSE'}:
+    elif string in {"false", "False", "FALSE"}:
         return False
     else:
         raise ValueError
@@ -87,10 +87,10 @@ def make_values(strings, name):
         if each_name.find("SET") != -1:
             main_set_name = each_name
 
-    if strings[0] == "\"" and strings[-1] == "\"":
-        strings = strings.replace("\\\"", "\"")
-        result[main_set_name]['Values'] = []
-        result[main_set_name]['Values'].append(strings)
+    if strings[0] == '"' and strings[-1] == '"':
+        strings = strings.replace('\\"', '"')
+        result[main_set_name]["Values"] = []
+        result[main_set_name]["Values"].append(strings)
     else:
         anchor = 0
         position = 0
@@ -105,7 +105,7 @@ def make_values(strings, name):
                 anchor = position
             elif check == "}":
                 stop = position
-                delStr = prop_str[anchor:stop + 1]
+                delStr = prop_str[anchor : stop + 1]
 
                 i = anchor
                 while i > 0:
@@ -116,7 +116,7 @@ def make_values(strings, name):
                     i -= 1
                 name_of_set = prop_str[name_start:anchor]
                 if name_of_set.find("=") == -1:
-                    prop_str = prop_str.replace(delStr, '').strip()
+                    prop_str = prop_str.replace(delStr, "").strip()
                     position = 0
 
             position += 1
@@ -133,9 +133,11 @@ def make_values(strings, name):
                 value = prop_str[anchor:i]
                 value = (value.lstrip()).rstrip()
                 if "=" in value:
-                    result[main_set_name]['Elements'][name]['Properties']['Results'] = {}
+                    result[main_set_name]["Elements"][name]["Properties"][
+                        "Results"
+                    ] = {}
                 else:
-                    result[main_set_name]['Elements'][name]['Properties']['Values'] = []
+                    result[main_set_name]["Elements"][name]["Properties"]["Values"] = []
                 values.append(value)
                 anchor = i + 1
             elif c == "{":
@@ -144,7 +146,7 @@ def make_values(strings, name):
                 brace_count -= 1
 
             if i == len(prop_str) - 1:
-                values.append(((prop_str[anchor:i + 1]).lstrip()).rstrip())
+                values.append(((prop_str[anchor : i + 1]).lstrip()).rstrip())
 
         for each_val in values:
             multiple_values = []
@@ -152,7 +154,7 @@ def make_values(strings, name):
                 pos = each_val.find("=")
                 varName = each_val[0:pos]
                 varName = typeCheck(varName)
-                varValue = each_val[pos + 1:len(each_val)]
+                varValue = each_val[pos + 1 : len(each_val)]
                 if varValue != "":
                     varValue = typeCheck(varValue)
             else:
@@ -162,7 +164,7 @@ def make_values(strings, name):
                     varValue = typeCheck(varValue)
 
             if isinstance(varValue, str) and "," in varValue:
-                varValue = (varValue.replace('{', '').strip()).replace('}', '').strip()
+                varValue = (varValue.replace("{", "").strip()).replace("}", "").strip()
                 multiple_values = varValue.split(",")
 
             for n in range(len(multiple_values)):
@@ -172,12 +174,18 @@ def make_values(strings, name):
                 multiple_values.append(each_v)
 
             if len(multiple_values) != 0:
-                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = multiple_values
+                result[main_set_name]["Elements"][name]["Properties"]["Results"][
+                    varName
+                ] = multiple_values
             elif varName != "" and varValue != "":
-                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = varValue
+                result[main_set_name]["Elements"][name]["Properties"]["Results"][
+                    varName
+                ] = varValue
             else:
                 if varValue != "":
-                    result[main_set_name]['Elements'][name]['Properties']['Values'].append(varValue)
+                    result[main_set_name]["Elements"][name]["Properties"][
+                        "Values"
+                    ].append(varValue)
 
 
 def delete_elements(strings):
@@ -199,9 +207,9 @@ def delete_elements(strings):
                 elif char == "{":
                     break
                 pos = pos - 1
-            delStr = strings[pos: strings.rfind(")")]
-            strings = strings.replace(delStr, '').strip()
-            strings = ''.join(c for c in strings if c not in '{}''()')
+            delStr = strings[pos : strings.rfind(")")]
+            strings = strings.replace(delStr, "").strip()
+            strings = "".join(c for c in strings if c not in "{}" "()")
         index += 1
     return strings
 
@@ -218,7 +226,7 @@ def make_subset_sets(strings, name):
 
     # make the values list, first
     for each_item in set_list:
-        each_item = ''.join(c for c in each_item if c not in '{}')
+        each_item = "".join(c for c in each_item if c not in "{}")
         each_item = typeCheck(each_item)
         items.append(each_item)
 
@@ -237,7 +245,7 @@ def make_subset_sets(strings, name):
         # find the highest Set number & make the next Set in Subset
         for each_name in result[main_set_name][subset_name]:
             if each_name.find("Set") != -1:
-                the_num = each_name.replace('Set', '')
+                the_num = each_name.replace("Set", "")
                 the_num = int(the_num)
                 if the_num > highest_count:
                     highest_count = the_num
@@ -246,7 +254,7 @@ def make_subset_sets(strings, name):
                     the_num = highest_count + 1
                 else:
                     the_num += 1
-                set_name = 'Set' + str(the_num)
+                set_name = "Set" + str(the_num)
 
         result[main_set_name][subset_name] = {}
         result[main_set_name][subset_name][set_name] = []
@@ -257,17 +265,19 @@ def make_subset_sets(strings, name):
             if each_name.find("SET") != -1:
                 main_set_name = each_name
 
-        if "Subset1" not in result[main_set_name]['Elements'][name]['Properties']:
-            result[main_set_name]['Elements'][name]['Properties'][subset_name] = {}
+        if "Subset1" not in result[main_set_name]["Elements"][name]["Properties"]:
+            result[main_set_name]["Elements"][name]["Properties"][subset_name] = {}
 
-        for each_name in result[main_set_name]['Elements'][name]['Properties']:
+        for each_name in result[main_set_name]["Elements"][name]["Properties"]:
             if each_name.find("Subset") != -1:
                 subset_name = each_name
 
         highest_count = 1
-        for each_name in result[main_set_name]['Elements'][name]['Properties'][subset_name]:
+        for each_name in result[main_set_name]["Elements"][name]["Properties"][
+            subset_name
+        ]:
             if each_name.find("Set") != -1:
-                the_num = each_name.replace('Set', '')
+                the_num = each_name.replace("Set", "")
                 the_num = int(the_num)
                 if the_num > highest_count:
                     highest_count = the_num
@@ -276,10 +286,14 @@ def make_subset_sets(strings, name):
                     the_num = highest_count + 1
                 else:
                     the_num += 1
-                set_name = 'Set' + str(the_num)
+                set_name = "Set" + str(the_num)
 
-        result[main_set_name]['Elements'][name]['Properties'][subset_name][set_name] = []
-        result[main_set_name]['Elements'][name]['Properties'][subset_name][set_name] = items
+        result[main_set_name]["Elements"][name]["Properties"][subset_name][
+            set_name
+        ] = []
+        result[main_set_name]["Elements"][name]["Properties"][subset_name][
+            set_name
+        ] = items
 
 
 def make_sets(strings, name):
@@ -310,7 +324,7 @@ def make_sets(strings, name):
         highest_count = 1
         for each_name in result[main_set_name]:
             if each_name.find("Set") != -1:
-                the_num = each_name.replace('Set', '')
+                the_num = each_name.replace("Set", "")
                 the_num = int(the_num)
                 if the_num > highest_count:
                     highest_count = the_num
@@ -319,16 +333,16 @@ def make_sets(strings, name):
                     the_num = highest_count + 1
                 else:
                     the_num += 1
-                set_name = 'Set' + str(the_num)
+                set_name = "Set" + str(the_num)
 
         result[main_set_name][set_name] = []
         result[main_set_name][set_name] = items
 
     else:
         highest_count = 1
-        for each_name in result[main_set_name]['Elements'][name]['Properties']:
+        for each_name in result[main_set_name]["Elements"][name]["Properties"]:
             if each_name.find("Set") != -1:
-                the_num = each_name.replace('Set', '')
+                the_num = each_name.replace("Set", "")
                 the_num = int(the_num)
                 if the_num > highest_count:
                     highest_count = the_num
@@ -337,9 +351,9 @@ def make_sets(strings, name):
                     the_num = highest_count + 1
                 else:
                     the_num += 1
-                set_name = 'Set' + str(the_num)
-        result[main_set_name]['Elements'][name]['Properties'][set_name] = []
-        result[main_set_name]['Elements'][name]['Properties'][set_name] = items
+                set_name = "Set" + str(the_num)
+        result[main_set_name]["Elements"][name]["Properties"][set_name] = []
+        result[main_set_name]["Elements"][name]["Properties"][set_name] = items
 
 
 def get_inner_sets(strings, for_this, name):
@@ -356,7 +370,7 @@ def get_inner_sets(strings, for_this, name):
             highest_count = 1
             for each_name in result[main_set_name]:
                 if each_name.find("Subset") != -1:
-                    the_num = each_name.replace('Subset', '')
+                    the_num = each_name.replace("Subset", "")
                     the_num = int(the_num)
                     if the_num > highest_count:
                         highest_count = the_num
@@ -369,9 +383,9 @@ def get_inner_sets(strings, for_this, name):
             result[main_set_name][subset_name] = {}
         else:
             highest_count = 1
-            for each_name in result[main_set_name]['Elements'][name]['Properties']:
+            for each_name in result[main_set_name]["Elements"][name]["Properties"]:
                 if each_name.find("Subset") != -1:
-                    the_num = each_name.replace('Subset', '')
+                    the_num = each_name.replace("Subset", "")
                     the_num = int(the_num)
                     if the_num > highest_count:
                         highest_count = the_num
@@ -381,18 +395,18 @@ def get_inner_sets(strings, for_this, name):
                     else:
                         the_num += 1
                     subset_name = "Subset" + str(the_num)
-            result[main_set_name]['Elements'][name]['Properties'][subset_name] = {}
+            result[main_set_name]["Elements"][name]["Properties"][subset_name] = {}
 
         start = strings.find("{{")
         end = strings.find("}}")
-        sets = strings[start + 1:end + 1]
+        sets = strings[start + 1 : end + 1]
         index = 0
         while index < len(sets):
             inner_set_start = sets.find("{")
             if inner_set_start != -1:
                 inner_set_end = sets.find("}")
-                inner_set = sets[inner_set_start:inner_set_end + 1]
-                sets = sets.replace(inner_set, '')
+                inner_set = sets[inner_set_start : inner_set_end + 1]
+                sets = sets.replace(inner_set, "")
                 index = 0
                 make_subset_sets(inner_set, name)
             index += 1
@@ -441,9 +455,9 @@ def make_elements(strings):
                     main_set_name = each_name
 
             highest_count = 1
-            for each_name in result[main_set_name]['Elements']:
+            for each_name in result[main_set_name]["Elements"]:
                 if original_name in each_name:
-                    the_num = each_name.replace(original_name, '')
+                    the_num = each_name.replace(original_name, "")
                     the_num = int(the_num)
                     if the_num > highest_count:
                         highest_count = the_num
@@ -454,8 +468,8 @@ def make_elements(strings):
                         the_num += 1
                     name = original_name + str(the_num)
 
-            result[main_set_name]['Elements'][name] = {}
-            result[main_set_name]['Elements'][name]['Properties'] = {}
+            result[main_set_name]["Elements"][name] = {}
+            result[main_set_name]["Elements"][name]["Properties"] = {}
 
             brace_count = 0
 
@@ -491,7 +505,7 @@ def make_elements(strings):
 
             element_str = strings[mark_start:mark_end]
             del_element_str = original_name + element_str
-            strings = strings.replace(del_element_str, '').strip()
+            strings = strings.replace(del_element_str, "").strip()
 
             index = 0
             start = 0
@@ -502,16 +516,16 @@ def make_elements(strings):
                 if char == "{" and element_str[position + 1] == "{":
                     start = position - 1
                     end = element_str.find("}}")
-                    sets = element_str[start:end + 2]
+                    sets = element_str[start : end + 2]
                     position = position + len(sets)
-                    element_str = element_str.replace(sets, '')
+                    element_str = element_str.replace(sets, "")
                     position = 0
                     if len(sets) > 1:
                         get_inner_sets(sets, "Subset", name)
                 elif char == "{":
                     start = position
                     end = element_str.find("}")
-                    sets = element_str[start:end + 1]
+                    sets = element_str[start : end + 1]
 
                     i = start
                     while i > 0:
@@ -522,7 +536,9 @@ def make_elements(strings):
                         i -= 1
                     name_of_set = element_str[name_start:start]
                     if name_of_set.find("=") == -1:
-                        element_str = element_str.replace(element_str[start:end + 1], '').strip()
+                        element_str = element_str.replace(
+                            element_str[start : end + 1], ""
+                        ).strip()
                         position = 0
                         if len(sets) > 1:
                             get_inner_sets(sets, "Set", name)
@@ -543,8 +559,8 @@ def check_for_next_string(next_string):
             anchorr = positionn
         elif check_str == "}":
             stopp = positionn
-            delStr = next_string[anchorr:stopp + 1]
-            next_string = next_string.replace(delStr, '')
+            delStr = next_string[anchorr : stopp + 1]
+            next_string = next_string.replace(delStr, "")
             positionn = -1
         positionn += 1
 
@@ -609,10 +625,12 @@ def get_the_set(string):
                                     last_set = skip
                                     position = skip
                                     next_set_list.append(string[mark_index:skip])
-                                    if next_set[0] == '':
+                                    if next_set[0] == "":
                                         next_set[0] = string[mark_index:skip]
                                     else:
-                                        next_set[0] = next_set[0] + string[mark_index:skip]
+                                        next_set[0] = (
+                                            next_set[0] + string[mark_index:skip]
+                                        )
                                 break
                         elif ch == "(":
                             brace_count += 1
@@ -665,10 +683,12 @@ def get_the_set(string):
                                     last_subset = skip
                                     position = skip
                                     next_set_list.append(string[mark_index:skip])
-                                    if next_set[0] == '':
+                                    if next_set[0] == "":
                                         next_set[0] = string[mark_index:skip]
                                     else:
-                                        next_set[0] = next_set[0] + string[mark_index:skip]
+                                        next_set[0] = (
+                                            next_set[0] + string[mark_index:skip]
+                                        )
                                 break
                         elif ch == "(":
                             brace_count += 1
@@ -703,7 +723,7 @@ def get_the_set(string):
                 position += 1
         else:
             next_set[0] = ""
-            return (len(string) - 1)
+            return len(string) - 1
 
         max_of_sets = max(last_set, last_subset)
         max_of_main_set = max(max_of_sets, last_subset)
@@ -711,12 +731,12 @@ def get_the_set(string):
         if max_of_main_set != 0:
             return max_of_main_set
         else:
-            return (len(string) - 1)
+            return len(string) - 1
 
     # Main entry of get_the_string()
     index = 0
     count = 0
-    next_set[0] = ''
+    next_set[0] = ""
     inner_sets = []
     next_set_list = []
     end = len(string)
@@ -738,12 +758,12 @@ def get_the_set(string):
                 if count == 0:
                     end = index
             index += 1
-        main_set = string[anchor:end + 1]
+        main_set = string[anchor : end + 1]
         current_set = main_set
 
         if next_set[0] != "":
             for each_next in next_set_list:
-                current_set = current_set.replace(each_next, '').strip()
+                current_set = current_set.replace(each_next, "").strip()
 
             pos = 0
             # remove unwanted commas from CS
@@ -751,11 +771,14 @@ def get_the_set(string):
                 char = current_set[pos]
                 if char == ",":
                     if current_set[pos + 1] == "}":
-                        current_set = current_set[0:pos] + current_set[pos + 1:(len(current_set))]
+                        current_set = (
+                            current_set[0:pos]
+                            + current_set[pos + 1 : (len(current_set))]
+                        )
                         pos = 0
                 pos += 1
 
-            check_string = ''.join(e for e in current_set if e.isalnum())
+            check_string = "".join(e for e in current_set if e.isalnum())
 
             if len(check_string) > 0:
                 return current_set, next_set[0]
@@ -770,29 +793,32 @@ def get_the_set(string):
 
     # End of get_the_string()
 
+
 # String parsing function for SimulationResults
 
 
 def formatSimRes(strings):
-    result['SimulationResults'] = {}
-    simRes = strings[strings.find('  resultFile') + 1:strings.find('\nend SimulationResult')]
+    result["SimulationResults"] = {}
+    simRes = strings[
+        strings.find("  resultFile") + 1 : strings.find("\nend SimulationResult")
+    ]
     simRes = simRes.translate(None, "\\")
-    simRes = simRes.split('\n')
+    simRes = simRes.split("\n")
     simOps = simRes.pop(1)
-    options = simOps[simOps.find('"startTime') + 1:simOps.find('",')]
+    options = simOps[simOps.find('"startTime') + 1 : simOps.find('",')]
     options = options + ","
     index = 0
     anchor = 0
 
     for i in simRes:
-        var = i[i.find('') + 1:i.find(" =")]
+        var = i[i.find("") + 1 : i.find(" =")]
         var = (var.lstrip()).rstrip()
-        value = i[i.find("= ") + 1:i.find(",")]
+        value = i[i.find("= ") + 1 : i.find(",")]
         value = (value.lstrip()).rstrip()
         value = typeCheck(value)
-        result['SimulationResults'][var] = value
+        result["SimulationResults"][var] = value
 
-    result['SimulationOptions'] = {}
+    result["SimulationOptions"] = {}
 
     while index < len(options):
         update = False
@@ -810,28 +836,29 @@ def formatSimRes(strings):
         index = index + 1
         if update:
             opVal = typeCheck(opVal)
-            result['SimulationOptions'][opVar] = opVal
+            result["SimulationOptions"][opVar] = opVal
+
 
 # string parsing function for Record types
 
 
 def formatRecords(strings):
-    result['RecordResults'] = {}
-    recordName = strings[strings.find("record ") + 1:strings.find("\n")]
-    recordName = recordName.replace("ecord ", '').strip()
-    strings = strings.replace(("end " + recordName + ";"), '').strip()
-    recordItems = strings[strings.find("\n") + 1: len(strings)]
+    result["RecordResults"] = {}
+    recordName = strings[strings.find("record ") + 1 : strings.find("\n")]
+    recordName = recordName.replace("ecord ", "").strip()
+    strings = strings.replace(("end " + recordName + ";"), "").strip()
+    recordItems = strings[strings.find("\n") + 1 : len(strings)]
     recordItems = recordItems.translate(None, "\\")
     recordItems = recordItems.split("\n")
     for each_item in recordItems:
-        var = each_item[each_item.find('') + 1:each_item.find(" =")]
+        var = each_item[each_item.find("") + 1 : each_item.find(" =")]
         var = (var.lstrip()).rstrip()
-        value = each_item[each_item.find("= ") + 1:each_item.find(",")]
+        value = each_item[each_item.find("= ") + 1 : each_item.find(",")]
         value = (value.lstrip()).rstrip()
         value = typeCheck(value)
         if var != "":
-            result['RecordResults'][var] = value
-    result['RecordResults']['RecordName'] = recordName
+            result["RecordResults"][var] = value
+    result["RecordResults"]["RecordName"] = recordName
 
 
 # Main entry to the OMParser module
@@ -846,8 +873,8 @@ def check_for_values(string):
     if string[0] == "(":
         string = "{" + string[1:-2] + "}"
 
-    if string[0] == "\"":
-        string = string.replace("\\\"", "\"")
+    if string[0] == '"':
+        string = string.replace('\\"', '"')
         string = string.replace("\\?", "?")
         string = string.replace("\\'", "'")
         return string
@@ -870,7 +897,7 @@ def check_for_values(string):
 
     for each_name in result:
         if each_name.find("SET") != -1:
-            the_num = each_name.replace("SET", '')
+            the_num = each_name.replace("SET", "")
             the_num = int(the_num)
             the_num = the_num + 1
             main_set_name = "SET" + str(the_num)
@@ -878,10 +905,10 @@ def check_for_values(string):
     result[main_set_name] = {}
 
     if current_set != "":
-        if current_set[1] == "\"" and current_set[-2] == "\"":
+        if current_set[1] == '"' and current_set[-2] == '"':
             make_values(current_set, "SET")
             current_set = ""
-            check_for_next_iteration = ''.join(e for e in next_set if e.isalnum())
+            check_for_next_iteration = "".join(e for e in next_set if e.isalnum())
             if len(check_for_next_iteration) > 0:
                 check_for_values(next_set)
 
@@ -889,7 +916,7 @@ def check_for_values(string):
             for each_name in result:
                 if each_name.find("SET") != -1:
                     main_set_name = each_name
-            result[main_set_name]['Elements'] = {}
+            result[main_set_name]["Elements"] = {}
 
             make_elements(current_set)
             current_set = delete_elements(current_set)
@@ -900,11 +927,11 @@ def check_for_values(string):
     if "{" in current_set:
         get_inner_sets(current_set, "Set", main_set_name)
 
-    check_for_next_iteration = ''.join(e for e in next_set if e not in {""})
+    check_for_next_iteration = "".join(e for e in next_set if e not in {""})
     if len(check_for_next_iteration) > 0:
         check_for_values(next_set)
     else:
-        check_for_next_iteration = ''.join(e for e in next_set if e.isalnum())
+        check_for_next_iteration = "".join(e for e in next_set if e.isalnum())
         if len(check_for_next_iteration) > 0:
             check_for_values(next_set)
 
