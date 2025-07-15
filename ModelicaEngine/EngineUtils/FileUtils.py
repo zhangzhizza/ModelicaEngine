@@ -45,7 +45,9 @@ def find_files_in_dir(dir_name, file_ext=".mo"):
 
 
 def set_mo_params(mo_file_path, set_params_dict):
+    print('mo_file_path:', mo_file_path)
     model_obj = Model(mo_file_path)
+    print('model_obj:', model_obj)
     ##########################################################
     #### read through all lines ##############################
     for param in set_params_dict:
