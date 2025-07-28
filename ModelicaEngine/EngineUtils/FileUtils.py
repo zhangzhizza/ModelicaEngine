@@ -20,6 +20,7 @@ def read_mat_file(
         for output_name in output_names:
             output_i = data.data(output_name)
             res.append(output_i)
+        print('............res:......', res)
         res = np.array(res)
         return res
     except Exception as e:
