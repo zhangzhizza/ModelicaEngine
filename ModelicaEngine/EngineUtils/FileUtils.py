@@ -52,6 +52,7 @@ def set_mo_params(mo_file_path, set_params_dict):
     ##########################################################
     #### read through all lines ##############################
     for param in set_params_dict:
+        print("param:", param)
         param_possible_types = [
             "Real",
             "String",
@@ -67,9 +68,9 @@ def set_mo_params(mo_file_path, set_params_dict):
                 get_val = model_obj.get_parameter_value(param_possible_type, param)
             except Exception as e:
                 print(
-                    f"WARNING!! The parameter {param_possible_type} {param} cannot be parsed! e: {e}"
+                    f"WARNING! The parameter {param_possible_type} {param} cannot be parsed! e: {e}"
                 )
-                get_val = np.nan
+            print("param_possible_type:", param_possible_type, "get_val:", get_val)
             if get_val is not None:
                 if param_possible_type == "Real":
                     new_value = str(set_params_dict[param])
@@ -98,6 +99,7 @@ def set_mo_params(mo_file_path, set_params_dict):
                 else:
                     new_value = str(set_params_dict[param])
                 break
+        print("param:", param, "param_possible_type", param_possible_type, "new_value", new_value)
         model_obj.update_parameter(
             type_=param_possible_type, identifier=param, new_value=new_value
         )
