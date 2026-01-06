@@ -56,7 +56,6 @@ def set_mo_params(mo_file_path, set_params_dict):
         set_val = set_params_dict[param]
         print("param:", param)
         print("val:", set_val)
-        need add new paraemters for pump per!!
         if type(set_val) is dict:
             param_possible_type = set_val["type"]
             new_value = set_val["value"]
@@ -109,7 +108,13 @@ def set_mo_params(mo_file_path, set_params_dict):
                         new_value = str(set_val)
                     break
         print("param:", param, "param_possible_type", param_possible_type, "new_value", new_value)
-        model_obj.update_parameter(
-            type_=param_possible_type, identifier=param, new_value=new_value
-        )
+        if "PerData" in param_possible_type:
+            model_obj.remove_component(identifier=param)
+            model_obj.add_parameter(
+                type_=param_possible_type,
+                identifier=param)
+        else:
+            model_obj.update_parameter(
+                type_=param_possible_type, identifier=param, new_value=new_value
+            )
     model_obj.save_as(mo_file_path)
