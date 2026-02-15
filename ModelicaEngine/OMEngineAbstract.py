@@ -148,6 +148,10 @@ class OMEngineAbstract(ABC):
                         f"Creating engine worker {i} by using the compiled executable..."
                     )
                     self._add_worker_to_list(i, om_exe_dir=om_exe_dir)
+                self._logger.info(
+                    f"Clear the temporary compiled executable directory {om_exe_dir}..."
+                )
+                shutil.rmtree(om_exe_dir)
         else:
             for i in range(multiprocesses):
                 self._logger.info(
