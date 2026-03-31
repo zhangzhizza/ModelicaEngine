@@ -67,7 +67,9 @@ def set_mo_params(mo_file_path, set_params_dict):
                 "Integer",
                 "Modelica.SIunits.MassFlowRate",
                 "Modelica.SIunits.Pressure",
-                "Modelica.SIunits.Pressure",
+                "Modelica.SIunits.ThermodynamicTemperature",
+                "Modelica.SIunits.EnergyFlowRate",
+                "Modelica.SIunits.Power"
             ]
             for param_possible_type in param_possible_types:
                 get_val = None
