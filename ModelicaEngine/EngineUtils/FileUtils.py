@@ -20,7 +20,6 @@ def read_mat_file(
         for output_name in output_names:
             output_i = data.data(output_name)
             res.append(output_i)
-        print('............res:......', res)
         res = np.array(res)
         return res
     except Exception as e:
@@ -46,16 +45,11 @@ def find_files_in_dir(dir_name, file_ext=".mo"):
 
 
 def set_mo_params(mo_file_path, set_params_dict):
-    print("set_params_dict:", set_params_dict)
-    print('mo_file_path:', mo_file_path)
     model_obj = Model(mo_file_path)
-    print('model_obj:', model_obj)
     ##########################################################
     #### read through all lines ##############################
     for param in set_params_dict:
         set_val = set_params_dict[param]
-        print("param:", param)
-        print("val:", set_val)
         if type(set_val) is dict:
             param_possible_type = set_val["type"]
             new_value = set_val["value"]
@@ -80,7 +74,6 @@ def set_mo_params(mo_file_path, set_params_dict):
                         f"WARNING! The parameter {param_possible_type} {param} cannot be parsed! e: {e}"
                     )
                     get_val = 'has_value' # TO-DO: cannot parse due to a bug in modelica_builder
-                print("param_possible_type:", param_possible_type, "get_val:", get_val)
                 if get_val is not None:
                     if param_possible_type == "Real":
                         new_value = str(set_val)
@@ -109,7 +102,6 @@ def set_mo_params(mo_file_path, set_params_dict):
                     else:
                         new_value = str(set_val)
                     break
-        print("param:", param, "param_possible_type", param_possible_type, "new_value", new_value)
         if "PerData" in param_possible_type:
             model_obj.remove_component(identifier=param)
             model_obj.add_parameter(

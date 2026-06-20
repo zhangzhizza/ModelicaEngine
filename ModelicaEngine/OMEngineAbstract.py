@@ -206,7 +206,6 @@ class OMEngineAbstract(ABC):
             thread_i.start()
             time.sleep(0.2)
             done_count += 1
-            print(done_count)
         for thread in threads:
             thread.join()
         self._logger.info("set_params_recompile completed!")
@@ -509,7 +508,7 @@ class EngineWorker(object):
                     res = self._om.getSolutions(result_filter)
                 res = np.array(res).T
                 res_df = pd.DataFrame(res)
-                res_df = res_df.applymap(float)
+                res_df = res_df.astype(float)
                 read_res_done = True
             except Exception as e:
                 read_res_exception = e
@@ -552,7 +551,7 @@ class EngineWorker(object):
         if "OPENMODELICAHOME" in self._envs:
             omhome = self._envs["OPENMODELICAHOME"]
         else:
-            omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
+            omhome = os.path.join(os.environ["OPENMODELICAHOME"])
 
         dll_paths = (
             os.path.join(omhome, "bin").replace("\\", "/")
@@ -584,7 +583,7 @@ class EngineWorker(object):
             p.wait(timeout=timeout)
             p.terminate()
         except BaseException:
-            print("Process timed out!")
+            self._logger.warning("Process timed out!")
             p.terminate()
             time.sleep(2)
             if p.poll() is None:  # Process still hasn't terminated
