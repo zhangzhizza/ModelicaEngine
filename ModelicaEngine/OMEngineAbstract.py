@@ -151,7 +151,13 @@ class OMEngineAbstract(ABC):
                 self._logger.info(
                     f"Clear the temporary compiled executable directory {om_exe_dir}..."
                 )
-                shutil.rmtree(om_exe_dir)
+                try:
+                    shutil.rmtree(om_exe_dir)
+                except Exception as e:
+                    self._logger.warning(
+                        f"Exception occurred when clearing the temporary compiled executable directory {om_exe_dir}: {e}, {
+                            traceback.print_exc()}"
+                    )
         else:
             for i in range(multiprocesses):
                 self._logger.info(
@@ -361,7 +367,13 @@ class EngineWorker(object):
                     f"Will delete {
                         self._worker_working_dir} because it is not empty!"
                 )
-                shutil.rmtree(self._worker_working_dir)
+                try:
+                    shutil.rmtree(self._worker_working_dir)
+                except Exception as e:
+                    self._logger.warning(
+                        f"Exception occurred when deleting the worker working directory {self._worker_working_dir}: {e}, {
+                            traceback.print_exc()}"
+                    )
             shutil.copytree(om_exe_dir, self._worker_working_dir, dirs_exist_ok=True)
             self._is_busy = False
             self._om_working_dir = self._worker_working_dir
