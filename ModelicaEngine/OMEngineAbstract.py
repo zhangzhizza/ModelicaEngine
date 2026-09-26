@@ -2,6 +2,7 @@
 # First create: 2024-05-01
 import os
 import glob
+import hashlib
 import shutil
 import time
 import copy
@@ -14,7 +15,7 @@ import pandas as pd
 import numpy as np
 
 from abc import ABC, abstractmethod
-from queue import Queue
+from queue import Empty, Queue
 from colorlog import ColoredFormatter
 from OMPython import ModelicaSystem
 from modelica_builder.model import Model
@@ -54,6 +55,7 @@ class OMEngineAbstract(ABC):
         om_envs: dict = {},
         additional_cmds: str = None,
         compiled_exe_dir: str = None,
+        worker_get_timeout: float | None = 7200,
     ):
         """
         Args:
@@ -61,8 +63,11 @@ class OMEngineAbstract(ABC):
         compiling_model: str
                 Choises from "OMSequential", "OMParallel", "OnetimeDuplicate".
                 For "OMSequential", different workers will be complied using OpenModelica sequentially;
-                For "OMParallel", different workers will be compiled using OpenModelica in parallel;
-                For "OnetimeDuplicate", the model will be compiled once and then the executable will be copied for different workers.
+                For "OMParallel" (deprecated): not thread-safe; falls back to OMSequential.
+                Prefer "OnetimeDuplicate": compile once, then copy the executable for each worker.
+        worker_get_timeout: float | None
+                Seconds to wait for a free worker from the pool. None waits forever.
+                Default 7200s (2h) so lost workers surface as TimeoutError instead of hanging.
         """
         self._logger = Logger().getLogger(
             "{}-{}".format(self.engine_type, mo_name), log_level, LOG_FMT
@@ -116,8 +121,14 @@ class OMEngineAbstract(ABC):
         self._multiprocesses = multiprocesses
         self._engine_workers = Queue(maxsize=multiprocesses)
         self._sim_counter = 0
+        self._sim_counter_lock = threading.Lock()
+        self._worker_get_timeout = worker_get_timeout
         self._om_envs = om_envs
         self._additional_cmds = additional_cmds
+        self._logger.info(
+            f"Worker queue get timeout: {self._worker_get_timeout} s "
+            f"(None means wait forever)"
+        )
         if compiled_exe_dir is None:
             if compiling_model.lower() == "omparallel":
                 threads = []
@@ -158,6 +169,11 @@ class OMEngineAbstract(ABC):
                         f"Exception occurred when clearing the temporary compiled executable directory {om_exe_dir}: {e}, {
                             traceback.print_exc()}"
                     )
+            else:
+                raise ValueError(
+                    f"Unknown compiling_model={compiling_model!r}. "
+                    f"Use OMSequential or OnetimeDuplicate (OMParallel is deprecated)."
+                )
         else:
             for i in range(multiprocesses):
                 self._logger.info(
@@ -217,14 +233,17 @@ class OMEngineAbstract(ABC):
         self._logger.info("set_params_recompile completed!")
 
     def _set_params_recompile_helper(self, worker, set_params_dict: dict):
-        worker.set_params_recompile(set_params_dict=set_params_dict)
-        self._engine_workers.put(worker)
+        try:
+            worker.set_params_recompile(set_params_dict=set_params_dict)
+        finally:
+            self._engine_workers.put(worker)
 
     def get_params(self, param_names: list) -> dict:
         available_worker = self._find_available_worker(request_id="get_params")
-        param_vals = available_worker.get_params(param_names)
-        self._engine_workers.put(available_worker)
-        return param_vals
+        try:
+            return available_worker.get_params(param_names)
+        finally:
+            self._engine_workers.put(available_worker)
 
     def _add_worker_to_list(self, worker_id, om_exe_dir=None):
         library_paths = []
@@ -248,12 +267,32 @@ class OMEngineAbstract(ABC):
         self._logger.info(
             f"Looking for a available worker for the request {request_id} ... "
         )
-        available_worker = self._engine_workers.get()
+        try:
+            available_worker = self._engine_workers.get(
+                timeout=self._worker_get_timeout
+            )
+        except Empty as e:
+            raise TimeoutError(
+                f"Timed out after {self._worker_get_timeout}s waiting for a free "
+                f"OM worker (request {request_id}). Possible causes: all workers "
+                f"busy longer than timeout, or workers lost without being returned."
+            ) from e
         self._logger.info(
             f"Worker {
                 available_worker.worker_name} is available for the request {request_id}."
         )
         return available_worker
+
+    def next_sim_request_id(self) -> int:
+        """Thread-safe simulation request id."""
+        with self._sim_counter_lock:
+            request_id = self._sim_counter
+            self._sim_counter += 1
+            return request_id
+
+    @property
+    def num_workers(self) -> int:
+        return self._multiprocesses
 
     def _compile_om(self, library_paths, mo_path, mo_name, additional_cmds):
         library_paths_in_use = []
@@ -558,7 +597,20 @@ class EngineWorker(object):
                 res_df.to_csv(res_path)
             return res_df
 
+    def _clear_stale_result_mat(self):
+        """Remove previous result mat so a failed run cannot reuse old outputs."""
+        if not self._mo_res_path or not os.path.exists(self._mo_res_path):
+            return
+        try:
+            os.remove(self._mo_res_path)
+            self._logger.info(f"Cleared stale result file: {self._mo_res_path}")
+        except Exception as e:
+            self._logger.warning(
+                f"Could not clear stale result file {self._mo_res_path}: {e}"
+            )
+
     def simulate_helper(self, verbose, timeout, simflags=""):
+        """Run the OM executable. Returns True only on clean success (returncode 0)."""
 
         if "OPENMODELICAHOME" in self._envs:
             omhome = self._envs["OPENMODELICAHOME"]
@@ -591,10 +643,12 @@ class EngineWorker(object):
             )
         else:
             p = subprocess.Popen(cmd, env=sim_env, cwd=self._om_working_dir)
+        timed_out = False
         try:
             p.wait(timeout=timeout)
             p.terminate()
         except BaseException:
+            timed_out = True
             self._logger.warning("Process timed out!")
             p.terminate()
             time.sleep(2)
@@ -605,7 +659,15 @@ class EngineWorker(object):
                 if p.poll() is None:  # If it's still running
                     self._logger.warning("Force-killing the process continued...")
                     subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)])
-        self._logger.info(f"Simulation process return code: {p.returncode}")
+        rc = p.returncode
+        self._logger.info(f"Simulation process return code: {rc}")
+        if timed_out:
+            self._logger.error("Simulation failed: process timed out")
+            return False
+        if rc != 0:
+            self._logger.error(f"Simulation failed: non-zero return code {rc}")
+            return False
+        return True
 
     def simulate(
         self,
@@ -632,14 +694,25 @@ class EngineWorker(object):
             method=method,
             rtol=rtol,
         )
+        # Avoid reading a previous worker result if this run fails.
+        self._clear_stale_result_mat()
         # step4: run simulation
         try:
             if len(simflag) == 0:
-                # self._om.simulate(verbose = verbose, timeout = timeout)
-                self.simulate_helper(verbose=verbose, timeout=timeout)
+                sim_ok = self.simulate_helper(verbose=verbose, timeout=timeout)
             else:
-                # self._om.simulate(simflags = simflag, verbose = verbose, timeout = timeout)
-                self.simulate_helper(verbose=verbose, timeout=timeout, simflags=simflag)
+                sim_ok = self.simulate_helper(
+                    verbose=verbose, timeout=timeout, simflags=simflag
+                )
+            if not sim_ok:
+                raise RuntimeError(
+                    f"Simulation executable failed for worker {self._worker_name}"
+                )
+            if not os.path.exists(self._mo_res_path):
+                raise RuntimeError(
+                    f"Simulation reported success but result file missing: "
+                    f"{self._mo_res_path}"
+                )
 
             self._logger.info(
                 f"Simulation completed, collecting results from {
@@ -691,12 +764,17 @@ class EngineWorker(object):
                 f"Port {port} is not available for interactive simulation"
             )
             raise ValueError(f"Port {port} is not available for interactive simulation")
-        self.simulate_helper(
+        self._clear_stale_result_mat()
+        sim_ok = self.simulate_helper(
             verbose=verbose,
             timeout=None,
             simflags=f"-embeddedServer=opc-ua -embeddedServerPort={port} {simflag}",
         )
-        # self._om.simulate(simflags = f'-embeddedServer=opc-ua -embeddedServerPort={port} {simflag}')
+        if not sim_ok:
+            self._is_busy = False
+            raise RuntimeError(
+                f"Interactive simulation executable failed for worker {self._worker_name}"
+            )
         # step5: collect results
         res_df = self._get_simulation_results(
             start_sim_time=start_time,

@@ -30,37 +30,38 @@ class Engine(OMEngineAbstract):
         verbose=False,
     ):
         time.sleep(random.random())
-        this_request_id = self._sim_counter  # time.time()
-        self._sim_counter += 1
+        this_request_id = self.next_sim_request_id()
         self._logger.info(f"Recieved a simulation request, id:{this_request_id}...")
         available_worker = self._find_available_worker(this_request_id)
-        if res_path is not None:
-            res_path_full = (
-                res_path
-                if os.path.isabs(res_path)
-                else f"{self._cwd}{os.sep}{res_path}"
+        try:
+            if res_path is not None:
+                res_path_full = (
+                    res_path
+                    if os.path.isabs(res_path)
+                    else f"{self._cwd}{os.sep}{res_path}"
+                )
+            else:
+                res_path_full = None
+            res_df = available_worker.simulate(
+                set_params_dict=set_params_dict,
+                start_time=start_time,
+                final_time=final_time,
+                step_time=step_time,
+                result_filter=result_filter,
+                method=method,
+                rtol=rtol,
+                res_path=res_path_full,
+                res_step_time=res_step_time,
+                simflag=simflag,
+                timeout=timeout,
+                verbose=verbose,
             )
-        else:
-            res_path_full = None
-        res_df = available_worker.simulate(
-            set_params_dict=set_params_dict,
-            start_time=start_time,
-            final_time=final_time,
-            step_time=step_time,
-            result_filter=result_filter,
-            method=method,
-            rtol=rtol,
-            res_path=res_path_full,
-            res_step_time=res_step_time,
-            simflag=simflag,
-            timeout=timeout,
-            verbose=verbose,
-        )
-        time.sleep(0.1)
-        # Put worker back to the queue
-        self._engine_workers.put(available_worker)
-        self._logger.info(f"Simulation request {this_request_id} is completed!")
-        return res_df
+            time.sleep(0.1)
+            self._logger.info(f"Simulation request {this_request_id} is completed!")
+            return res_df
+        finally:
+            # Always return worker so parallel pools cannot deadlock.
+            self._engine_workers.put(available_worker)
 
     @property
     def engine_type(self):
